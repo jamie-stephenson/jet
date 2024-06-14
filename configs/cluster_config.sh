@@ -4,6 +4,9 @@ drive_addr='address'
 drive_usr='user'
 drive_pwd='pwd'
 hosts_file='file'
+slurm_conf_path=/clusterfs/jet/configs/slurm/
+worker_script=/clusterfs/jet/scripts/build_worker.sh
+torch_index=https://download.pytorch.org/whl/cpu
 
 nodes=()
 

@@ -8,7 +8,7 @@
 #SBATCH --output=/clusterfs/small-projects/jet/logs/jet_dist_%j.log
 
 # Activate the virtual environment
-source /clusterfs/envs/jet/bin/activate
+source ~/envs/jet/bin/activate
 
 # Choose master node. This must be a member of the partiton being used. Be careful if inclduing the login node in the partition. 
 master_host=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
