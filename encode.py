@@ -69,18 +69,6 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        "--rank",
-        default=0,
-        help="Global rank of current process."
-    )
-
-    parser.add_argument(
-        "--world_size",
-        default=1,
-        help="Total number of processes."
-    )
-
-    parser.add_argument(
         "--config_file",
         default=None,
         type=str,
