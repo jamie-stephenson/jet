@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo apt update
+sudo apt-get update
 
 #--RUN CONFIG SCRIPT--
 config_file="cluster_config.sh"
@@ -13,9 +13,9 @@ source $config_file
 #---------------------
 
 #-----MOUNT DRIVE-----
-sudo apt -y install cifs-utils
+sudo apt-get -y install cifs-utils
 sudo mkdir /clusterfs
-sudo echo "$drive_addr /clusterfs  cifs  user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" >> /etc/fstab
+echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab
 sudo mount /clusterfs
 #---------------------
 
@@ -58,11 +58,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo apt install ntpdate -y
+sudo apt-get install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo apt install slurm-wlm -y
+sudo apt-get install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
@@ -74,7 +74,7 @@ sudo systemctl start slurmctld
 #---------------------
 
 #----GNU PARALLEL-----
-sudo apt -y install parallel
+sudo apt-get -y install parallel
 #---------------------
 
 #--RUN WORKER CONFIG--
@@ -85,7 +85,7 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i id_ed25519 paperspace@$node "bash -s" < $script_to_run $node
+        ssh -i ~/.ssh/id_ed25519 paperspace@$node "bash -s" < $script_to_run $node
     fi
 }
 
@@ -98,8 +98,8 @@ parallel -j 0 run_on_node {} $worker_script ::: "${nodes[@]}"
 
 #-PYTHON ENVIRONMENT--
 sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt -y install python3.11
-sudo apt -y install python3.11-venv
+sudo apt-get -y install python3.11
+sudo apt-get -y install python3.11-venv
 mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
