@@ -5,6 +5,7 @@ node=$1
 sudo apt update
 
 #-----MOUNT DRIVE-----
+sudo apt -y install cifs-utils
 sudo mkdir /clusterfs
 sudo echo "$drive_addr /clusterfs  cifs  user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" >> /etc/fstab
 sudo mount /clusterfs
