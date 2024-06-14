@@ -34,13 +34,13 @@ for node in "${nodes[@]}"; do
     slurm_nodes+="NodeName=${!name} NodeAddr=${!addr} CPUs=${!cpus} State=UNKNOWN\n"
 done
 
-sudo sed -i "s/NodeName= NodeAddr= CPUs= State=UNKNOWN/$slurm_nodes/" $slurm_conf_path
-sudo sed -i "s/ClusterName= /ClusterName=$cluster_name/" $slurm_conf_path
+sudo sed -i "s/NodeName= NodeAddr= CPUs= State=UNKNOWN/$slurm_nodes/" ${slurm_conf_path}slurm.conf
+sudo sed -i "s/ClusterName= /ClusterName=$cluster_name/" ${slurm_conf_path}slurm.conf
 
 last_index=$(( ${#nodes[@]} - 1 )) # Note: this relies on strict naming pattern: node00 node01 node02 ...
 node_string="node[01-$(printf "%02d" $last_index)]"
 
-sudo sed -i "s/Nodes= /Nodes=$node_string/" $slurm_conf_path
+sudo sed -i "s/Nodes= /Nodes=$node_string/" ${slurm_conf_path}slurm.conf
 #---------------------
 
 #---UPDATE HOSTNAME--- 
