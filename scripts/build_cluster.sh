@@ -21,7 +21,8 @@ sudo mount /clusterfs
 
 #-----CLONE REPO------
 sudo chown $USER /clusterfs
-git clone https://github.com/jamie-stephenson/jet.git /clusterfs
+mkdir /clusterfs/jet/
+git clone https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
 #---------------------
 
 #---EDIT SLURM.CONF---
@@ -52,7 +53,7 @@ for node in "${nodes[@]}"; do
     hosts+="${!addr} ${!name}\n"
 done
 sudo sed -i "2i $hosts" /etc/hosts 
-sudo sed -i 's/.*/node00/' ./etc/hostname
+sudo sed -i 's/.*/node00/' /etc/hostname
 sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/cloud.cfg
 #---------------------
 
@@ -105,6 +106,7 @@ source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
 #---------------------
+
 
 
 
