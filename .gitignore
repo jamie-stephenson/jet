@@ -1,0 +1,14 @@
+.ipynb_checkpoints
+__pycache__
+data
+test.ipynb
+runs
+corpora
+tokenizers
+minbpe
+.vscode
+wandb
+logs
+test.sh
+test.conf
+dataset_test.py

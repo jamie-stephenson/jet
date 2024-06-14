@@ -1,0 +1,4 @@
+corpus: fineweb-edu
+encoded_format: shards
+tokenizer_corpus: fineweb-edu
+vocab_size: 300
