@@ -15,7 +15,7 @@ source $config_file
 #-----MOUNT DRIVE-----
 sudo apt-get -y install cifs-utils
 sudo mkdir /clusterfs
-echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab
+echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
 sudo mount /clusterfs
 #---------------------
 
@@ -61,11 +61,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo NEEDRESTART_MODE=a apt-get install ntpdate -y
+sudo apt-get install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo NEEDRESTART_MODE=a apt-get install slurm-wlm -y
+sudo apt-get install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
@@ -81,6 +81,9 @@ sudo apt-get -y install parallel
 #---------------------
 
 #--RUN WORKER CONFIG--
+touch ~/.ssh/known_hosts
+chmod 600 ~/.ssh/known_hosts
+
 run_on_node() {
     node=$1
     script_to_run=$2
@@ -89,8 +92,6 @@ run_on_node() {
     drive_pwd=$5
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then
-            touch ~/.ssh/known_hosts
-            chmod 600 ~/.ssh/known_hosts
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd
