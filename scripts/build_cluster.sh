@@ -89,6 +89,8 @@ run_on_node() {
     drive_pwd=$5
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then
+            touch ~/.ssh/known_hosts
+            chmod 600 ~/.ssh/known_hosts
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd

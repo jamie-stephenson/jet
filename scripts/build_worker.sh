@@ -34,7 +34,7 @@ for node in "${nodes[@]}"; do
     hosts+="${!addr} ${!name}\n"
 done
 sudo sed -i "2i $hosts" /etc/hosts 
-sudo sed -i 's/.*/node00/' ./etc/hostname
+sudo sed -i "s/.*/$node/" /etc/hostname
 sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/cloud.cfg
 #---------------------
 
