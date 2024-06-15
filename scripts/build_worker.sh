@@ -2,7 +2,6 @@
 
 node=$1
 
-export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
 
 #-----MOUNT DRIVE-----
@@ -37,11 +36,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo apt-get install ntpdate -y
+sudo NEEDRESTART_MODE=a apt-get install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo apt-get install slurmd slurm-client -y
+sudo NEEDRESTART_MODE=a apt-get install slurmd slurm-client -y
 sudo cp /clusterfs/munge.key /etc/munge/munge.key
 sudo cp "${slurm_conf_path}slurm.conf" /etc/slurm/slurm.conf
 sudo cp "${slurm_conf_path}cgroup*" /etc/slurm
