@@ -83,20 +83,21 @@ sudo apt-get -y install parallel
 #--RUN WORKER CONFIG--
 touch ~/.ssh/known_hosts
 chmod 600 ~/.ssh/known_hosts
+mkdir ~/jet_config_logs
 
 run_on_node() {
     local node=$1
-    shift
+    local script=$2
+    shift 2
     local args=("$@")
 
-    mkdir ~/jet_config_logs
     output_file=~/jet_config_logs/$node.log
 
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s" < "${args[@]}" > $output_file 2>&1
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${arr[@]}" < $script > $output_file 2>&1
     fi
 }
 
@@ -118,4 +119,5 @@ python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
+source ~/envs/jet/bin/deactivate
 #---------------------
