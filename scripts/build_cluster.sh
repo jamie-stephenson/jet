@@ -97,7 +97,7 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]}" < $script > $output_file 2>&1
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[*]@Q}" < $script > $output_file 2>&1
     fi
 }
 
@@ -118,5 +118,5 @@ python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
-source ~/envs/jet/bin/deactivate
+deactivate
 #---------------------

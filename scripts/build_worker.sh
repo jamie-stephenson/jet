@@ -48,5 +48,5 @@ python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
-source ~/envs/jet/bin/deactivate
+deactivate
 #---------------------
