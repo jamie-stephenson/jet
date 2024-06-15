@@ -4,6 +4,9 @@ node=$1
 drive_addr=$2
 drive_usr=$3
 drive_pwd=$4
+hosts=$5
+slurm_conf_path=$6
+torch_index=$7
 
 sudo apt-get update
 
@@ -14,25 +17,9 @@ echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=100
 sudo mount /clusterfs
 #---------------------
 
-#--RUN CONFIG SCRIPT--
-config_file="/clusterfs/jet/configs/cluster_config.sh"
-
-if [ ! -f "$config_file" ]; then
-    echo "Error: $config_file not found."
-    exit 1
-fi
-source $config_file
-#---------------------
-
 #---UPDATE HOSTNAME--- 
 sudo hostname $node  
 sudo sed -i 2d /etc/hosts
-hosts=""
-for node in "${nodes[@]}"; do
-    name="${node}[name]"
-    addr="${node}[addr]"
-    hosts+="${!addr} ${!name}\n"
-done
 sudo sed -i "2i $hosts" /etc/hosts 
 sudo sed -i "s/.*/$node/" /etc/hostname
 sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/cloud.cfg
