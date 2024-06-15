@@ -10,7 +10,7 @@ sudo apt-get update
 #-----MOUNT DRIVE-----
 sudo apt-get -y install cifs-utils
 sudo mkdir /clusterfs
-echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab
+echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
 sudo mount /clusterfs
 #---------------------
 
