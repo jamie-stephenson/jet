@@ -1,6 +1,9 @@
 #!/bin/bash
 
 node=$1
+drive_addr=$2
+drive_usr=$3
+drive_pwd=$4
 
 sudo apt-get update
 

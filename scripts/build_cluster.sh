@@ -85,7 +85,7 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 paperspace@$node "bash -s" < $script_to_run $node
+        ssh -i ~/.ssh/id_ed25519 paperspace@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd
     fi
 }
 
