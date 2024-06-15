@@ -84,11 +84,14 @@ sudo apt-get -y install parallel
 run_on_node() {
     node=$1
     script_to_run=$2
+    drive_addr=$3 
+    drive_usr=$4 
+    drive_pwd=$5
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 paperspace@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd
     fi
 }
 
@@ -96,7 +99,7 @@ run_on_node() {
 export -f run_on_node
 
 # Run script.sh in parallel on all nodes
-parallel -j 0 run_on_node {} $worker_script ::: "${nodes[@]}"
+parallel -j 0 run_on_node {} $worker_script $drive_addr $drive_usr $drive_pwd ::: "${nodes[@]}"
 #---------------------
 
 #-PYTHON ENVIRONMENT--
