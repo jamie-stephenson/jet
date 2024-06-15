@@ -1,12 +1,12 @@
 #!/bin/bash
 
-node=$1
-drive_addr=$2
-drive_usr=$3
-drive_pwd=$4
-hosts=$5
-slurm_conf_path=$6
-torch_index=$7
+node="$1"
+drive_addr="$2"
+drive_usr="$3"
+drive_pwd="$4"
+hosts="$5"
+slurm_conf_path="$6"
+torch_index="$7"
 
 sudo apt-get update
 

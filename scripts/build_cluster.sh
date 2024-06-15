@@ -104,7 +104,7 @@ run_on_node() {
 # Export the function to make it available to parallel
 export -f run_on_node
 
-args=($worker_script $drive_addr $drive_usr $drive_pwd $hosts $slurm_conf_path $torch_index)
+args=( "$worker_script" "$drive_addr" "$drive_usr" "$drive_pwd" "$hosts" "$slurm_conf_path" "$torch_index" )
 # Run script.sh in parallel on all nodes
 parallel -j 0 run_on_node {} "${args[@]}" ::: "${nodes[@]}"
 #---------------------
