@@ -32,8 +32,7 @@ sudo NEEDRESTART_MODE=l apt-get install ntpdate -y
 #-------SLURM---------
 sudo NEEDRESTART_MODE=l apt-get install slurmd slurm-client -y
 sudo cp /clusterfs/munge.key /etc/munge/munge.key
-sudo cp "${slurm_conf_path}slurm.conf" /etc/slurm/slurm.conf
-sudo cp "${slurm_conf_path}cgroup*" /etc/slurm
+sudo cp -r "${slurm_conf_path}"* /etc/slurm/
 sudo systemctl enable munge
 sudo systemctl start munge
 sudo systemctl enable slurmd
