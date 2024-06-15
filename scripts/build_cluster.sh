@@ -89,7 +89,7 @@ run_on_node() {
     local node=$1
     local script=$2
     shift 2
-    local args=("$@")
+    local args=( "$node" "$@")
 
     output_file=~/jet_config_logs/$node.log
 
@@ -100,7 +100,6 @@ run_on_node() {
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]}" < $script > $output_file 2>&1
     fi
 }
-
 
 # Export the function to make it available to parallel
 export -f run_on_node
