@@ -2,6 +2,7 @@
 
 node=$1
 
+export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
 
 #-----MOUNT DRIVE-----
