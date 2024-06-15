@@ -61,11 +61,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo apt-get install ntpdate -y
+sudo NEEDRESTART_MODE=l apt-get install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo apt-get install slurm-wlm -y
+sudo NEEDRESTART_MODE=l apt-get install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
