@@ -89,7 +89,7 @@ run_on_node() {
     local node=$1
     local script=$2
     shift 2
-    local args=( "$node" "$@")
+    local args=( "$node" "$@" )
 
     output_file=~/jet_config_logs/$node.log
 
@@ -97,7 +97,7 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[*]@Q}" < $script > $output_file 2>&1
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $script > $output_file 2>&1
     fi
 }
 
@@ -105,8 +105,8 @@ run_on_node() {
 export -f run_on_node
 
 args=( "$worker_script" "$drive_addr" "$drive_usr" "$drive_pwd" "$hosts" "$slurm_conf_path" "$torch_index" )
-# Run script.sh in parallel on all nodes
-parallel -j 0 run_on_node {} "${args[@]}" ::: "${nodes[@]}"
+# Run worker_script in parallel on all nodes
+parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 #---------------------
 
 #-PYTHON ENVIRONMENT--
