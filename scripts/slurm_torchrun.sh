@@ -14,7 +14,7 @@ source ~/envs/jet/bin/activate
 master_host=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 master_addr=$(getent hosts $master_host | awk '{print $1}')
 
-export HF_HUB_DISABLE_PROGRESS_BARS=1
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 # Run the PyTorch distributed script
 srun torchrun \
     --nproc_per_node=$SLURM_CPUS_PER_TASK \
