@@ -119,4 +119,5 @@ source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
 deactivate
+mkdir -p /clusterfs/jet/logs/
 #---------------------
