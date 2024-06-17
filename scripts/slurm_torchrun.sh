@@ -17,7 +17,7 @@ master_addr=$(getent hosts $master_host | awk '{print $1}')
 export HF_HUB_DISABLE_PROGRESS_BARS=1
 # Run the PyTorch distributed script
 srun torchrun \
-    --nproc_per_node=$SLURM_NTASKS_PER_NODE \
+    --nproc_per_node=$SLURM_CPUS_PER_TASK \
     --nnodes=$SLURM_NNODES \
     --rdzv_id=$RANDOM \
     --rdzv_backend=c10d \
