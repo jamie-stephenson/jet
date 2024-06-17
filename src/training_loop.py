@@ -8,15 +8,16 @@ def train(model,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
     start_time = time.time()
 
-    for i,(x, y) in enumerate(train_dataloader): # TODO: aync load next batch?
+    for i,(x, y) in enumerate(train_dataloader): # TODO: async load next batch?
 
         x, y = x.to(args.device), y.to(args.device)
-        logits = model(x)
-
-        loss = F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
 
         if args.world_size > 1:
             model.require_backward_grad_sync = ((i+1)%args.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
+
+        logits = model(x)
+
+        loss = F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
         
         loss.backward()
 

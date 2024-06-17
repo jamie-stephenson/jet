@@ -8,6 +8,5 @@ minbpe
 .vscode
 wandb
 logs
-test.sh
-test.conf
+test*
 dataset_test.py

@@ -15,14 +15,14 @@ source $config_file
 #-----MOUNT DRIVE-----
 sudo apt-get -y install cifs-utils
 sudo mkdir /clusterfs
-echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab
+echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
 sudo mount /clusterfs
 #---------------------
 
 #-----CLONE REPO------
 sudo chown $USER /clusterfs
 mkdir /clusterfs/jet/
-git clone https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
+git clone -b slurm-config https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
 #---------------------
 
 #---EDIT SLURM.CONF---
@@ -61,11 +61,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo NEEDRESTART_MODE=a apt-get install ntpdate -y
+sudo NEEDRESTART_MODE=l apt-get install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo NEEDRESTART_MODE=a apt-get install slurm-wlm -y
+sudo NEEDRESTART_MODE=l apt-get install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
@@ -81,27 +81,32 @@ sudo apt-get -y install parallel
 #---------------------
 
 #--RUN WORKER CONFIG--
+touch ~/.ssh/known_hosts
+chmod 600 ~/.ssh/known_hosts
+mkdir ~/jet_config_logs
+
 run_on_node() {
-    node=$1
-    script_to_run=$2
-    drive_addr=$3 
-    drive_usr=$4 
-    drive_pwd=$5
+    local node=$1
+    local script=$2
+    shift 2
+    local args=( "$node" "$@" )
+
+    output_file=~/jet_config_logs/$node.log
+
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then
-            touch ~/.ssh/known_hosts
-            chmod 600 ~/.ssh/known_hosts
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s" < $script_to_run $node $drive_addr $drive_usr $drive_pwd
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $script > $output_file 2>&1
     fi
 }
 
 # Export the function to make it available to parallel
 export -f run_on_node
 
-# Run script.sh in parallel on all nodes
-parallel -j 0 run_on_node {} $worker_script $drive_addr $drive_usr $drive_pwd ::: "${nodes[@]}"
+args=( "$worker_script" "$drive_addr" "$drive_usr" "$drive_pwd" "$hosts" "$slurm_conf_path" "$torch_index" )
+# Run worker_script in parallel on all nodes
+parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 #---------------------
 
 #-PYTHON ENVIRONMENT--
@@ -113,4 +118,6 @@ python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r /clusterfs/jet/requirements.txt
 pip install torch --index-url $torch_index
+deactivate
+mkdir -p /clusterfs/jet/logs/
 #---------------------
