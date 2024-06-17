@@ -22,7 +22,7 @@ sudo mount /clusterfs
 #-----CLONE REPO------
 sudo chown $USER /clusterfs
 mkdir /clusterfs/jet/
-git clone -b slurm-config https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
+git clone https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
 #---------------------
 
 #---EDIT SLURM.CONF---
