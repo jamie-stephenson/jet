@@ -3,7 +3,7 @@ from datetime import datetime
 
 class PathFetcher:
     """
-    Generates paths used in `train_model.py` and `train_tokenizer.py` based on the templates in the give path config yaml file.
+    Generates paths used in `train_model.py`, `encode.py` and `download.py` based on the templates in the given path config yaml file.
     """
 
     def __init__(self, args, config_path: str = './configs/path_config.yaml'):

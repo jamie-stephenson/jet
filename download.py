@@ -1,6 +1,13 @@
+from src.file_utils import PathFetcher
 import argparse
 import importlib
 import os
+
+def main(args):
+    
+    paths = PathFetcher(args)
+
+    download_dataset(args.corpus, paths.corpus, args.nproc)
 
 def download_dataset(name,path,nproc):
         
@@ -11,15 +18,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--name",
+        "--corpus",
         type=str,
         help="Name of dataset."
-    )
-
-    parser.add_argument(
-        "--path",
-        type=str,
-        help="Path to dir to download data to."
     )
 
     parser.add_argument(
@@ -31,4 +32,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    download_dataset(args.name,args.path,args.nproc)
+    main(args)
