@@ -75,10 +75,10 @@ class Tokenizer:
             pair_to_merge = self._sync_bp_max()
             if self.rank == 0:
                 if self.current_vocab_size%10==0:
-                    print(f"Last 10 merges took {time()-t_log} seconds.")
+                    print(f"Last 10 merges took {time()-t_log:.2f} seconds.")
                     t_log = time()
                 if self.current_vocab_size%100==0:
-                    print(f"Training time: {time()-t0} seconds.")
+                    print(f"Training time: {time()-t0:.2f} seconds.")
                 self.merges[pair_to_merge] = self.current_vocab_size
             self._merge_and_update_bp_counts(pair_to_merge)
             self.current_vocab_size += 1
