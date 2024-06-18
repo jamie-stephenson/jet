@@ -68,11 +68,17 @@ class Tokenizer:
         print(f"Rank {self.rank} ready to train.")
         dist.barrier()
         if self.rank == 0:
-            t0 = time()   
+            t0 = time() 
+            t_log = t0  
             print("\nTraining tokenizer...")
         while self.current_vocab_size < self.max_vocab_size:
             pair_to_merge = self._sync_bp_max()
             if self.rank == 0:
+                if self.current_vocab_size%10==0:
+                    print(f"Last 10 merges took {time()-t_log} seconds.")
+                    t_log = time()
+                if self.current_vocab_size%100==0:
+                    print(f"Training time: {time()-t0} seconds.")
                 self.merges[pair_to_merge] = self.current_vocab_size
             self._merge_and_update_bp_counts(pair_to_merge)
             self.current_vocab_size += 1
