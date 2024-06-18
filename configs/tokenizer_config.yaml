@@ -1,4 +1,4 @@
-corpus: fineweb-edu
+corpus: fineweb_edu
 encoded_format: shards
-tokenizer_corpus: fineweb-edu
+tokenizer_corpus: fineweb_edu
 vocab_size: 300
