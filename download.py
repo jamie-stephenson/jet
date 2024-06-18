@@ -24,7 +24,7 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        "--num_proc",
+        "--nproc",
         default=os.cpu_count(),
         type=int,
         help="Number of processes to use for downloading."
