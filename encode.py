@@ -5,12 +5,17 @@ import torch.distributed as dist
 import importlib
 import argparse
 import os
+import wandb
 
 def main(args):
 
     rank, world_size = dist.get_rank(), dist.get_world_size()
 
     paths = PathFetcher(args)
+
+    
+    if not args.no_wandb and rank == 0:
+        wandb.init(project='jet',name='encode.py',config=args)
     
     corpus = get_dataset(args.corpus,paths.corpus,rank,world_size)
 
@@ -66,6 +71,13 @@ if __name__ == '__main__':
     parser.add_argument(
         "--vocab_size",
         type=int
+    )
+
+    parser.add_argument(
+        "--no-wandb",
+        "--no_wandb",
+        action="store_true",
+        help="If set, wandb logging is disabled."
     )
 
     parser.add_argument(

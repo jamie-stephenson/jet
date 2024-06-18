@@ -7,6 +7,7 @@ from collections import Counter
 import pickle
 from typing import Tuple, List
 from time import time
+import wandb
     
 class Tokenizer:
     """
@@ -73,12 +74,12 @@ class Tokenizer:
             print("\nTraining tokenizer...")
         while self.current_vocab_size < self.max_vocab_size:
             pair_to_merge = self._sync_bp_max()
-            if self.rank == 0:
-                if self.current_vocab_size%10==0:
-                    print(f"Last 10 merges took {time()-t_log:.2f} seconds.")
-                    t_log = time()
-                if self.current_vocab_size%100==0:
-                    print(f"Training time: {time()-t0:.2f} seconds.")
+            if self.rank == 0 and wandb.run is not None:
+                wandb.log({
+                    "Total Time": time()-t0,
+                    "Iter Time": time()-t_log,
+                })
+                t_log = time()
                 self.merges[pair_to_merge] = self.current_vocab_size
             self._merge_and_update_bp_counts(pair_to_merge)
             self.current_vocab_size += 1
@@ -99,6 +100,13 @@ class Tokenizer:
         if self.rank == 0:
             print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
                   f" with count {total_bp_counts[pair_to_merge]}.")
+            if wandb.run is not None:
+                wandb.log({
+                    "Merged bytepair count": total_bp_counts[pair_to_merge],
+                    "Length total_bp_counts": len(unique_bps),
+                    "Length rank 0 bp_counts": len(self.bp_counts),
+                    "Number of tokens": sum(len(block) for block in self.blocks)
+                })
 
         return pair_to_merge
     
