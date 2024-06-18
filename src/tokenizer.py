@@ -36,7 +36,7 @@ class Tokenizer:
     def save_encoded_corpus(self,corpus,path,encoded_format):
         """
         Janky way of encoding and saving a corpus (that differs from the tokenizer corpus) 
-        that accounts for two different output formats.
+        that supports two different output formats.
         """
         save_mthd = f"_save_to_{encoded_format}"
         tokens = self.encode(corpus)
@@ -96,31 +96,28 @@ class Tokenizer:
         return pair_to_merge
     
     def _merge_and_update_bp_counts(self, bytepair):
-        updated_blocks = []
-        for block in self.blocks:
-            updated_block = []
-            for i in range(len(block)):
-                if i > 0 and block[i-1:i+1]==list(bytepair) and updated_block[-1] != self.current_vocab_size:
+        for block_idx in range(len(self.blocks)):
+            i = 1
+            while i < len(self.blocks[block_idx]):
+                if self.blocks[block_idx][i-1:i+1]==list(bytepair):
                     #if X=bc is our bytepair to merge and our string is abcd, then we need 
                     #to decrease the ab and cd counts and increase the aX and Xd counts.
                     # We say ab and cd have `location` = "before" and "after" respectively
                     if i > 1:
-                        self._update_bp_counts((updated_block[-2],updated_block[-1]),"before")
-                    if i < len(block) - 1: 
-                        self._update_bp_counts((block[i],block[i+1]),"after")
+                        self._update_bp_counts((self.blocks[block_idx][i-2],self.blocks[block_idx][i-1]),"before")
+                    if i < len(self.blocks[block_idx]) - 1: 
+                        self._update_bp_counts((self.blocks[block_idx][i],self.blocks[block_idx][i+1]),"after")
                     
-                    #Now we merge tokens, but only if we didn't merge on the last iteration.
-                    #This protects against triple tokens e.g. if block == "abbbc" 
-                    #and bytepair == 'bb', then we only merge the first 'bb'.
-                    updated_block[-1] = self.current_vocab_size
-                else:
-                    updated_block.append(block[i])
-            updated_blocks.append(updated_block)
-        self.blocks = updated_blocks
+                    del self.blocks[block_idx][i]
+                    self.blocks[block_idx][i-1] = self.current_vocab_size
+                i+=1
         self.bp_counts.pop(bytepair,None)
 
     def _update_bp_counts(self, bp, location):
-        self.bp_counts[bp] -= 1
+        if self.bp_counts[bp] == 1:
+            self.bp_counts.pop(bp,None)
+        else:
+            self.bp_counts[bp] -= 1
         new_bp = (bp[0],self.current_vocab_size) if location == "before" else (self.current_vocab_size,bp[1])
         self.bp_counts[new_bp] = self.bp_counts.get(new_bp,0) + 1
 
