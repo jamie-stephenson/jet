@@ -10,7 +10,7 @@ from time import time
     
 class Tokenizer:
     """
-    Class for training and using tokenizers in an (almost) distribution agnositic manner.
+    Class for training and using tokenizers that is (almost) distribution agnositic.
     """
     def __init__(self, merges, rank, world_size) -> None:
         self.rank = rank
@@ -71,7 +71,7 @@ class Tokenizer:
             t0 = time()   
             print("\nTraining tokenizer...")
         while self.current_vocab_size < self.max_vocab_size:
-            pair_to_merge = self._sync_bp_counts()
+            pair_to_merge = self._sync_bp_max()
             if self.rank == 0:
                 self.merges[pair_to_merge] = self.current_vocab_size
             self._merge_and_update_bp_counts(pair_to_merge)
@@ -80,7 +80,8 @@ class Tokenizer:
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
 
-    def _sync_bp_counts(self) -> Tuple:
+    def _sync_bp_max(self) -> Tuple:
+
         all_bp_counts = [None]*self.world_size
         dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
         
@@ -123,12 +124,6 @@ class Tokenizer:
 
     @staticmethod
     def _count_bytepairs(blocks: List[list]) -> dict:
-        """
-            At the moment this is only used once, at the start of training.
-            However, I have made this a staticmethod incase I end up using 
-            it more frequently e.g. instead of updating bp_counts in place
-            I could just recount bps every loop, maybe this is quicker?
-        """
         bytepairs = []
         for block in blocks:
             bytepairs += [(block[i],block[i+1]) for i in range(len(block)-1)]
