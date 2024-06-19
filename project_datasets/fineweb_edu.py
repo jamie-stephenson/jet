@@ -5,7 +5,7 @@ import os
 def get_dataset(path,rank,world_size):
     assert os.path.exists(path), (
         f"Dataset fineweb-edu does not exist at {path}.\n"
-        f"Please download by running `python ./project_datasets/fineweb_edu.py --path {path} --num_proc {os.cpu_count()}`"
+        f"Please download by running `python download.py --corpus fineweb_edu`"
     ) #TODO stop this from duplicating across processes while still ending process group gracefully
 
     start, end = find_opus_indices(100000,rank,world_size) # We train on 100,000 documents TODO: make this an arg
