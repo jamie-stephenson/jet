@@ -8,6 +8,8 @@ import pickle
 from typing import Tuple, List
 from time import time
 import wandb
+
+from torch.profiler import profile, schedule, tensorboard_trace_handler, ProfilerActivity
     
 class Tokenizer:
     """
@@ -59,6 +61,21 @@ class Tokenizer:
 
     def __train(self, vocab_size):
         """This method is only supposed to be accessed by the `from_corpus` factory method."""
+
+        sched = schedule(
+            wait=4,
+            warmup=2,
+            active=8,
+            repeat=4
+        )
+
+        prof = profile(
+            activities=[ProfilerActivity.CPU],
+            schedule=sched,
+            on_trace_ready=tensorboard_trace_handler('./profile/',worker_name=self.rank),
+            with_stack=True
+        )
+
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
 
@@ -71,17 +88,19 @@ class Tokenizer:
             t0 = time() 
             t_log = t0  
             print("\nTraining tokenizer...")
-        while self.current_vocab_size < self.max_vocab_size:
-            pair_to_merge = self._sync_bp_max()
-            if self.rank == 0 and wandb.run is not None:
-                wandb.log({
-                    "Total Time": time()-t0,
-                    "Iter Time": time()-t_log,
-                })
-                t_log = time()
-                self.merges[pair_to_merge] = self.current_vocab_size
-            self._merge_and_update_bp_counts(pair_to_merge)
-            self.current_vocab_size += 1
+        with prof as p:
+            while self.current_vocab_size < self.max_vocab_size:
+                pair_to_merge = self._sync_bp_max()
+                if self.rank == 0 and wandb.run is not None:
+                    wandb.log({
+                        "Total Time": time()-t0,
+                        "Iter Time": time()-t_log,
+                    })
+                    t_log = time()
+                    self.merges[pair_to_merge] = self.current_vocab_size
+                self._merge_and_update_bp_counts(pair_to_merge)
+                self.current_vocab_size += 1
+                p.step()
 
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
