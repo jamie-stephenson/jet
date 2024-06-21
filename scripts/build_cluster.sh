@@ -1,6 +1,16 @@
 #!/bin/bash
 
+wait_for_pkg_mngmt() {
+    echo "Checking for running package management processes..."
+    while sudo lsof /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
+        echo "Package management processes are running. Waiting for them to finish..."
+        sleep 5
+    done
+    echo "No package management processes running. Continuing with the script..."
+}
+
 sudo apt-get update
+wait_for_pkg_mngmt
 
 #--RUN CONFIG SCRIPT--
 config_file="cluster_config.sh"
