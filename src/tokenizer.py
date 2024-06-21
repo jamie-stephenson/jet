@@ -8,7 +8,8 @@ import pickle
 from typing import Tuple, List
 from time import time
 import wandb
-import cProfile
+from contextlib import nullcontext
+from scalene import scalene_profiler
 from torch.profiler import profile, schedule, tensorboard_trace_handler, ProfilerActivity
     
 class Tokenizer:
@@ -62,11 +63,9 @@ class Tokenizer:
     def __train(self, vocab_size):
         """This method is only supposed to be accessed by the `from_corpus` factory method."""
 
-        profiler = 'cProfile'
+        profiler = 'scalene'
 
-        if profiler == 'cProfile':
-            prof = cProfile.Profile()
-        elif profiler == 'torch':
+        if profiler == 'torch':
             sched = schedule(
                 wait=4,
                 warmup=2,
@@ -79,6 +78,9 @@ class Tokenizer:
                 schedule=sched,
                 on_trace_ready=tensorboard_trace_handler('./profile/torch/')
             )
+        elif profiler == 'scalene':
+            scalene_profiler.start()
+            prof = nullcontext()
         else:
             print(f"Profiler '{profiler}' not recognised.")
 
@@ -110,9 +112,9 @@ class Tokenizer:
                 if profiler == 'torch':
                     p.step()
 
-        if profiler == 'cProfile':
-            prof.dump_stats(f'./profile/cprofile/rank{self.rank}')
-
+        if profiler == 'scalene':
+            scalene_profiler.stop()
+            
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
 
