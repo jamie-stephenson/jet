@@ -8,7 +8,7 @@ import pickle
 from typing import Tuple, List
 from time import time
 import wandb
-
+import cProfile
 from torch.profiler import profile, schedule, tensorboard_trace_handler, ProfilerActivity
     
 class Tokenizer:
@@ -62,19 +62,23 @@ class Tokenizer:
     def __train(self, vocab_size):
         """This method is only supposed to be accessed by the `from_corpus` factory method."""
 
-        sched = schedule(
-            wait=4,
-            warmup=2,
-            active=8,
-            repeat=4
-        )
+        profiler = 'cProfile'
 
-        prof = profile(
-            activities=[ProfilerActivity.CPU],
-            schedule=sched,
-            on_trace_ready=tensorboard_trace_handler('./profile/',worker_name=self.rank),
-            with_stack=True
-        )
+        if profiler == 'cProfile':
+            prof = cProfile.Profile()
+        else:
+            sched = schedule(
+                wait=4,
+                warmup=2,
+                active=8,
+                repeat=4
+            )
+
+            prof = profile(
+                activities=[ProfilerActivity.CPU],
+                schedule=sched,
+                on_trace_ready=tensorboard_trace_handler('./profile/torch/')
+            )
 
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
@@ -101,6 +105,9 @@ class Tokenizer:
                 self._merge_and_update_bp_counts(pair_to_merge)
                 self.current_vocab_size += 1
                 p.step()
+
+        if profiler == 'cProfile':
+            prof.dump_stats(f'./profile/cprofile/rank{self.rank}')
 
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
