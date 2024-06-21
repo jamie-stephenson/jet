@@ -66,7 +66,7 @@ class Tokenizer:
 
         if profiler == 'cProfile':
             prof = cProfile.Profile()
-        else:
+        elif profiler == 'torch':
             sched = schedule(
                 wait=4,
                 warmup=2,
@@ -79,6 +79,8 @@ class Tokenizer:
                 schedule=sched,
                 on_trace_ready=tensorboard_trace_handler('./profile/torch/')
             )
+        else:
+            print(f"Profiler '{profiler}' not recognised.")
 
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
@@ -104,7 +106,9 @@ class Tokenizer:
                     self.merges[pair_to_merge] = self.current_vocab_size
                 self._merge_and_update_bp_counts(pair_to_merge)
                 self.current_vocab_size += 1
-                p.step()
+
+                if profiler == 'torch':
+                    p.step()
 
         if profiler == 'cProfile':
             prof.dump_stats(f'./profile/cprofile/rank{self.rank}')
