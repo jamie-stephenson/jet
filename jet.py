@@ -94,6 +94,6 @@ def get_model(config):
 
     model.to(config.device)
     if config.world_size > 1:
-        model = DDP(model)
+        model = DDP(model,config.device_id)
 
     return model

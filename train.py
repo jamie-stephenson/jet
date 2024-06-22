@@ -1,6 +1,6 @@
 from jet import get_model
 from src.data_utils import get_dataloader
-from src.dist_utils import setup, cleanup, is_torchrun
+from src.dist_utils import setup, cleanup
 from src.file_utils import PathFetcher, args_from_config_file
 from src.training_loop import train
 import torch
@@ -13,7 +13,7 @@ import importlib
 
 def main(args):
 
-    paths = PathFetcher(args, is_torchrun())
+    paths = PathFetcher(args)
 
     if not args.no_wandb and args.rank == 0:
         wandb.init(project='jet',name=paths.wandb,config=args)
@@ -68,14 +68,13 @@ def get_parser():
         "--encoded_format",
         choices=['mmap','shards'],
         type=str,
-        help="The format of the encoded corpus file."
+        help="The format of the encoded corpus."
     )
 
     parser.add_argument(
         "--tokenizer_corpus",
-        default=None,
         type=str,
-        help="Name of corpus used to train tokenizer."
+        help="Name of corpus used to train tokenizer that encoded `corpus`."
     )
 
     parser.add_argument(
@@ -164,7 +163,14 @@ def get_parser():
         "--seq_len",
         default=16,
         type=int,
-        help="Max sequence length used for training."
+        help="Sequence length used for training."
+    )
+
+    parser.add_argument(
+        "--overlap",
+        default=2,
+        type=int,
+        help="Sequence overlap used for training."
     )
 
     parser.add_argument(
@@ -190,20 +196,16 @@ def get_parser():
 
     parser.add_argument(
         "--device",
-        default="cuda" if torch.cuda.is_available() else "cpu",
+        default=f"cuda:{os.getenv('LOCAL_RANK','0')}" if torch.cuda.is_available() else "cpu",
+        type=str,
         help="Device on which experiments are to be ran."
     )
 
     parser.add_argument(
-        "--rank",
-        default=0,
-        help="Global rank of current process."
-    )
-
-    parser.add_argument(
-        "--world_size",
-        default=1,
-        help="Total number of processes."
+        "--num_workers",
+        default=2 if torch.cuda.is_available() else 0,
+        type=int,
+        help="Number of subprocesses to use for dataloading each GPU."
     )
 
     parser.add_argument(
@@ -234,11 +236,18 @@ if __name__ == '__main__':
     if args.config_file:
         args = args_from_config_file(args)
 
-    backend = 'nccl' if torch.cuda.is_available() else 'gloo'
-    setup(backend) 
-    args.device += f":{os.getenv('LOCAL_RANK','0')}"
-    args.rank, args.world_size = dist.get_rank(), dist.get_world_size() 
+    torch.manual_seed(90)
 
+    if torch.cuda.is_available():
+        args.device_id = [int(os.getenv('LOCAL_RANK','0'))]
+        backend = 'nccl'  
+    else:
+        args.device_id = None
+        backend = 'gloo'
+
+    setup(backend) 
+    args.rank, args.world_size = dist.get_rank(), dist.get_world_size() 
+    
     main(args)
 
     cleanup()

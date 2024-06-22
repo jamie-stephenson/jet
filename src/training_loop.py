@@ -8,7 +8,7 @@ def train(model,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
     start_time = time.time()
 
-    for i,(x, y) in enumerate(train_dataloader): # TODO: async load next batch?
+    for i,(x, y) in enumerate(train_dataloader):
 
         x, y = x.to(args.device), y.to(args.device)
 
@@ -31,9 +31,9 @@ def train(model,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
             eff_batch = i/args.grad_accumulation_steps
             if args.no_wandb:
                 print("-"*40)
-                print(f"Effective Batch {eff_batch}")
+                print(f"Effective Batch {eff_batch:.0f}")
                 print("-"*40)
-                print(f"Training has been executing for {current_time}.")
+                print(f"Training has been executing for {current_time} seconds.")
                 print(f"Current training loss is: {loss:.2f}")
             else:
                 wandb.log({
