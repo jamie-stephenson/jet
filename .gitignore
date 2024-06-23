@@ -10,3 +10,4 @@ wandb
 logs
 test*
 dataset_test.py
+profile
