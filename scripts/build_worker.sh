@@ -51,6 +51,7 @@ sudo systemctl start slurmd
 
 #-PYTHON ENVIRONMENT--
 sudo add-apt-repository ppa:deadsnakes/ppa
+wait_for_pkg_mngmt
 sudo apt-get -y install python3.11
 sudo apt-get -y install python3.11-venv
 mkdir envs
