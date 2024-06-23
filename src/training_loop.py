@@ -11,14 +11,14 @@ def train(model,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
     start_time = time.time()
 
-    prof_dir = f"./profile/train/{args.encoded_format}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}/"
+    prof_dir = f"./profile/train/{args.encoded_format}/nworkers_{args.num_workers}/"
     os.makedirs(prof_dir,exist_ok=True)
 
     sched = schedule(
-        wait=4,
-        warmup=2,
-        active=8,
-        repeat=4
+        wait=10,
+        warmup=5,
+        active=35,
+        repeat=1
     )
 
     prof = profile(
