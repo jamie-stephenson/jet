@@ -24,7 +24,7 @@ class ArrayDataset(Dataset):
     
 class ShardedDataset(Dataset):
     """
-    Class to sample from a dataset that is split into shards and stored at `path`.
+    Class to sample from a dataset that is split into numpy array shards and stored at `path`.
     Each shard is assumed to have equal `shard_size` except the last shard in the dir, which has size <= `shard_size`.
     """
     def __init__(self, path, seq_len):
@@ -44,7 +44,7 @@ class ShardedDataset(Dataset):
         if start_idx+self.seq_len+1>self.shard_size:
             shard_idx += 1
             start_idx = 0
-        np_tokens = np.load(self.shards[shard_idx]).astype(np.int32)[start_idx:start_idx+self.seq_len+1]
+        np_tokens = np.load(self.shards[shard_idx], mmap_mode='r').astype(np.int32)[start_idx:start_idx+self.seq_len+1]
         sample = torch.tensor(np_tokens[:-1],dtype=torch.long)
         targets = torch.tensor(np_tokens[1:],dtype=torch.long)  
         return sample,targets
@@ -78,7 +78,7 @@ def get_dataloader(path,args,mode):
         data = np.memmap(path,dtype=np.uint16,mode='r+')
         dataset = ArrayDataset(data,args.seq_len)
     elif args.encoded_format == 'shards':
-        dataset = ShardedDataset(path)
+        dataset = ShardedDataset(path,args.seq_len)
 
     sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
     dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
