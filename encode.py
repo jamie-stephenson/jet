@@ -15,7 +15,7 @@ def main(args):
 
     
     if not args.no_wandb and rank == 0:
-        wandb.init(project='jet',name='encode.py',config=args)
+        wandb.init(project='jet',name=f"encode_ws{world_size}_vs{args.vocab_size}",config=args)
     
     corpus = get_dataset(args.corpus,paths.corpus,rank,world_size)
 
@@ -100,8 +100,7 @@ if __name__ == '__main__':
     cleanup()
 
     """ 
-    NOTE: To use torchrun you have to change the path on line 1 of
-    C:/Users/[user]/[condadist]/envs/[envname]/Scripts/torchrun-script.py
-    to be C:/Users/[user]/[condadist]/envs/[envname]/python.exe
-    This might be unique to Windows and/or conda though.
+    NOTE: To use torchrun on windows you may have to change the path on line 1 of
+    {your_env}/Scripts/torchrun-script.py to be the path to the python.exe file
+    in your python environment.
     """
