@@ -64,7 +64,6 @@ class Tokenizer:
 
         blocks = self._regex_split(self.corpus)
         self.blocks = [list(block.encode('utf-8')) for block in blocks]
-        self.bp_counts = self._count_bytepairs(self.blocks)
 
         print(f"Rank {self.rank} ready to train.")
         dist.barrier()
@@ -89,6 +88,9 @@ class Tokenizer:
 
     def _sync_bp_max(self) -> Tuple:
 
+        if self.current_vocab_size%256==0:
+            self.bp_counts = self._count_bytepairs(self.blocks)
+
         all_bp_counts = [None]*self.world_size
         dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
         
@@ -96,9 +98,9 @@ class Tokenizer:
         total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
                             for bp in unique_bps}
         
-        if self.current_vocab_size == 256:
-            # Estimate minimum frequency of any bytepair that will be merged, we won't keep track of any bp below this threshold. 
-            self.min_freq = int(0.85*np.mean([(i+1)*k[1] for i,k in enumerate(Counter(total_bp_counts).most_common())])/(self.max_vocab_size-256)) 
+        if self.current_vocab_size%256==0:
+            x = self.current_vocab_size - 255
+            self.min_freq = int(np.mean([(x+i)*k[1] for i,k in enumerate(Counter(total_bp_counts).most_common())])/(self.current_vocab_size+256)) 
             if self.rank==0:
                 print(f"Minimum frequency set to {self.min_freq}.")
 
