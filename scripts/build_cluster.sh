@@ -65,7 +65,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install slurm-wlm -y
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
@@ -112,7 +112,7 @@ parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 #-PYTHON ENVIRONMENT--
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11-venv
+sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
 mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate

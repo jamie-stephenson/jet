@@ -11,7 +11,7 @@ torch_index="$7"
 sudo apt-get update
 
 #-----MOUNT DRIVE-----
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install cifs-utils
+sudo apt-get -o DPkg::Lock::Timeout=60 -y install cifs-utils
 sudo mkdir /clusterfs
 echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
 sudo mount /clusterfs
@@ -30,7 +30,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install slurmd slurm-client -y
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install slurmd slurm-client -y
 sudo cp /clusterfs/munge.key /etc/munge/munge.key
 sudo cp -r "${slurm_conf_path}"* /etc/slurm/
 sudo systemctl enable munge
@@ -43,7 +43,7 @@ sudo systemctl start slurmd
 sudo add-apt-repository ppa:deadsnakes/ppa
 wait_for_pkg_mngmt
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
-sudo apt-get -o DPkg::Lock::Timeout=20 -y python3.11-venv
+sudo apt-get -o DPkg::Lock::Timeout=60 -y python3.11-venv
 mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
