@@ -95,6 +95,14 @@ class Tokenizer:
         unique_bps = set(bp for bp_counts in all_bp_counts for bp in bp_counts.keys())
         total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
                             for bp in unique_bps}
+        
+        if self.current_vocab_size == 256:
+            # Estimate minimum frequency of any bytepair that will be merged, we won't keep track of any bp below this threshold. 
+            self.min_freq = int(0.85*np.mean([(i+1)*k[1] for i,k in enumerate(Counter(total_bp_counts).most_common())])/(self.max_vocab_size-256)) 
+            if self.rank==0:
+                print(f"Minimum frequency set to {self.min_freq}.")
+
+        self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
         pair_to_merge = max(total_bp_counts, key=total_bp_counts.get)
         
         if self.rank == 0:
@@ -115,8 +123,8 @@ class Tokenizer:
             i = 1
             while i < len(self.blocks[block_idx]):
                 if self.blocks[block_idx][i-1:i+1]==list(bytepair):
-                    #if X=bc is our bytepair to merge and our string is abcd, then we need 
-                    #to decrease the ab and cd counts and increase the aX and Xd counts.
+                    # If X=bc is our bytepair to merge and our string is abcd, then we need 
+                    # to decrease the ab and cd counts and increase the aX and Xd counts.
                     # We say ab and cd have `location` = "before" and "after" respectively
                     if i > 1:
                         self._update_bp_counts((self.blocks[block_idx][i-2],self.blocks[block_idx][i-1]),"before")
@@ -129,9 +137,7 @@ class Tokenizer:
         self.bp_counts.pop(bytepair,None)
 
     def _update_bp_counts(self, bp, location):
-        if self.bp_counts[bp] == 1:
-            self.bp_counts.pop(bp,None)
-        else:
+        if bp in self.bp_counts:
             self.bp_counts[bp] -= 1
         new_bp = (bp[0],self.current_vocab_size) if location == "before" else (self.current_vocab_size,bp[1])
         self.bp_counts[new_bp] = self.bp_counts.get(new_bp,0) + 1
