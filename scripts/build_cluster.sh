@@ -1,16 +1,6 @@
 #!/bin/bash
 
-wait_for_pkg_mngmt() {
-    echo "Checking for running package management processes..."
-    while sudo lsof /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
-        echo "Package management processes are running. Waiting for them to finish..."
-        sleep 5
-    done
-    echo "No package management processes running. Continuing with the script..."
-}
-
 sudo apt-get update
-wait_for_pkg_mngmt
 
 #--RUN CONFIG SCRIPT--
 config_file="cluster_config.sh"
@@ -23,7 +13,7 @@ source $config_file
 #---------------------
 
 #-----MOUNT DRIVE-----
-sudo apt-get -y install cifs-utils
+sudo apt-get -o DPkg::Lock::Timeout=20 -y install cifs-utils
 sudo mkdir /clusterfs
 echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
 sudo mount /clusterfs
@@ -71,11 +61,11 @@ sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/c
 #---------------------
 
 #-----NTPUPDATE-------
-sudo NEEDRESTART_MODE=l apt-get install ntpdate -y
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 #---------------------
 
 #-------SLURM---------
-sudo NEEDRESTART_MODE=l apt-get install slurm-wlm -y
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
 sudo cp /etc/munge/munge.key /clusterfs
 sudo systemctl enable munge
@@ -87,7 +77,7 @@ sudo systemctl start slurmctld
 #---------------------
 
 #----GNU PARALLEL-----
-sudo apt-get -y install parallel
+sudo apt-get -o DPkg::Lock::Timeout=20 -y install parallel
 #---------------------
 
 #--RUN WORKER CONFIG--
@@ -121,8 +111,8 @@ parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 
 #-PYTHON ENVIRONMENT--
 sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get -y install python3.11
-sudo apt-get -y install python3.11-venv
+sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
+sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11-venv
 mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
