@@ -2,7 +2,8 @@ from jet import get_model
 from src.data_utils import get_dataloader
 from src.dist_utils import setup, cleanup
 from src.file_utils import PathFetcher, args_from_config_file
-from src.training_loop import train
+from src.model_utils import train
+from src.tokenizer import Tokenizer
 import torch
 import torch.distributed as dist
 import argparse
@@ -17,15 +18,16 @@ def main(args):
 
     if not args.no_wandb and args.rank == 0:
         wandb.init(project='jet',name=paths.wandb,config=args)
-        wandb.define_metric("Effective Batch Number")        
+        wandb.define_metric("Effective Batch Number") 
 
+    tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer) # Only used for sample output generation during training
     model = get_model(args)
     optimizer = get_optimizer(args.optimizer, model, args)
     lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, args)
     train_dataloader = get_dataloader(paths.encoded_corpus, args, 'train')
     eval_dataloader = get_dataloader(paths.encoded_corpus, args, 'eval')
     
-    model = train(model,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args)
+    model = train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args)
 
     if args.rank == 0:
         os.makedirs(os.path.dirname(paths.model))
@@ -226,6 +228,24 @@ def get_parser():
         "--eff_batch_per_log",
         default=50,
         help="Number of effective batches per log."
+    )
+
+    parser.add_argument(
+        "--log_per_val",
+        default=4,
+        help="Number of logs per validation run."
+    )
+
+    parser.add_argument(
+        "--val_prompt",
+        default="Hello, my name is Jet. J.E.T. stands for ",
+        help="Prompt from which to generate sample output during training."
+    )
+
+    parser.add_argument(
+        "--temp",
+        default=1,
+        help="Temperature to use for sample output generation during training."
     )
 
     return parser

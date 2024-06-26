@@ -1,5 +1,4 @@
 import torch.distributed as dist
-from datasets import load_dataset
 import os
 
 def setup(backend):
@@ -31,7 +30,7 @@ def synced_write_to_file(data_chunk, file_path, rank, world_size):
         if rank == i:
             with open(file_path, 'ab') as f:
                 f.write(data_chunk)
-            print(f"Machine {rank} wrote its part to the file.")
+            print(f"Rank {rank} wrote its part to the file.")
         dist.barrier()
 
 def split_txt(path,rank,world_size):
