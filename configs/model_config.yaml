@@ -10,7 +10,7 @@ ff_dim: 32
 lr_max: 0.01
 lr_schedule: onecycle
 mask_type: causal
-max_iter: 1000
+epochs: 1
 num_blocks: 4
 num_heads: 8
 seq_len: 16

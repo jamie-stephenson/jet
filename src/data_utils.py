@@ -56,21 +56,22 @@ class CustomBatchSampler(Sampler):
     """
     def __init__(self, length, rank, world_size, args):
         max_idx = length - args.seq_len - 1
-        self.batch_size = args.batch_size
-        self.max_iter = args.max_iter
-        indices = torch.arange(0,max_idx,args.seq_len-args.overlap)
-        nsamples = self.max_iter*self.batch_size*world_size
-        assert nsamples <= len(indices), ("Invalid training configuration: "
-                                        f"The expected number of samples ({nsamples}) exceeds the " 
-                                        f"number available in the dataset ({len(indices)}).")
-        self.indices = indices[torch.randperm(len(indices))[rank:self.max_iter*world_size:world_size]]
+        self.indices = torch.arange(0,max_idx,args.seq_len-args.overlap)
+        self.nsamples = len(self.indices) # Total number of samples in dataset
+        self.length = self.nsamples//(world_size*args.batch_size) # Length of sampler 
+        self.max_idx = self.length*world_size*args.batch_size # Trim nsamples so that every rank gets sampler with same length
+        self.rank = rank
+        self.world_size = world_size  
+        self.batch_size = args.batch_size      
 
     def __iter__(self):
-        for i in range(self.max_iter):
-            yield self.indices[i:i+self.batch_size]
+        shuffle = torch.randperm(self.nsamples)[self.rank:self.max_idx:self.world_size]
+        shuffled_indices = self.indices[shuffle].view(-1,self.batch_size)
+        for i in range(self.length):
+            yield shuffled_indices[i]
     
     def __len__(self):
-        return self.max_iter #I have no idea if this is right, changing it seems to do nothing.
+        return self.length #I have no idea if this is right, changing it seems to do nothing.
 
 def get_dataloader(path,args,mode):
     if args.encoded_format == 'mmap':

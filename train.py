@@ -83,10 +83,10 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--max_iter",
+        "--epochs",
         type=int,
-        default=100,
-        help="The number of iterations to train for."
+        default=1,
+        help="The number of epochs to train for."
     )
 
     parser.add_argument(
