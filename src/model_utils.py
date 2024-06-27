@@ -100,8 +100,8 @@ def evaluate(model, dataloader, args):
 
             loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
 
-        loss = loss_sum/len(dataloader)
-        dist.all_reduce(loss, op=dist.ReduceOp.AVG)
+        loss = loss_sum/(args.world_size*len(dataloader))
+        dist.all_reduce(loss, op=dist.ReduceOp.SUM)
 
     if model_mode:
         model.train()
@@ -119,11 +119,11 @@ def generate(model,tokenizer,string,temp,device='cpu'):
     output = []
 
     with torch.no_grad():
-        x = torch.tensor(tokenizer.encode(string)).to(device)
+        x = torch.tensor(tokenizer.encode(string)[-seq_len:]).view(1,-1).to(device) # (1,seq_len)
         for _ in range(20): #TODO Implement special tokens so this doesn't need an arbitrary limit.    
-            prob = F.softmax(model(x)[0, -1, :] / temp)
-            next_token = torch.multinomial(prob, 1)
-            x = torch.cat(x, next_token)[-seq_len:]
+            prob = F.softmax(model(x)[0, -1] / temp,dim=0) # (vocab_size,)
+            next_token = torch.multinomial(prob, 1).view(1,-1) # (1,1)
+            x = torch.cat((x, next_token),dim=1)[:,-seq_len:] # (1,seq_len)
             output.append(next_token.item())
 
     if model_mode:
