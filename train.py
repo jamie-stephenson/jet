@@ -22,10 +22,10 @@ def main(args):
 
     tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer) # Only used for sample output generation during training
     model = get_model(args)
-    optimizer = get_optimizer(args.optimizer, model, args)
-    lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, args)
     train_dataloader = get_dataloader(paths.encoded_corpus, args, 'train')
     eval_dataloader = get_dataloader(paths.encoded_corpus, args, 'eval')
+    optimizer = get_optimizer(args.optimizer, model, args)
+    lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader), args)
     
     model = train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args)
 
@@ -42,10 +42,10 @@ def get_optimizer(name, model, args):
 
     return optimizer
 
-def get_lr_scheduler(name, optimizer, args):
+def get_lr_scheduler(name, optimizer, steps_per_epoch, args):
     
     lr_scheduler_module = importlib.import_module("lr_schedulers." + name, package=".")
-    lr_scheduler = lr_scheduler_module.get_lr_scheduler(optimizer, args)
+    lr_scheduler = lr_scheduler_module.get_lr_scheduler(optimizer, steps_per_epoch, args)
 
     return lr_scheduler
 
