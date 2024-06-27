@@ -14,11 +14,12 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     for epoch in range(args.epochs):
     
-        if args.no_wandb:
-            print("-"*40)
-            print(f"Epoch {epoch}")
-        else:
-            wandb.log({"Epoch": epoch})
+        if args.rank == 0:
+            if args.no_wandb:
+                print("-"*40)
+                print(f"Epoch {epoch}")
+            else:
+                wandb.log({"Epoch": epoch})
 
         for i,(x, y) in enumerate(train_dataloader):
         
