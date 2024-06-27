@@ -40,13 +40,12 @@ class Tokenizer:
         that supports two different output formats.
         """
         save_mthd = f"_save_to_{encoded_format}"
+        dist.broadcast_object_list([self.merges]) # Ensure all ranks know correct merges
         tokens = self.encode(corpus)
         getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
     
     def encode(self, corpus):
-        dist.broadcast_object_list([self.merges]) # Ensure all ranks know correct merges
-        print(f"Rank {self.rank} ready to encode.")
-        dist.barrier()
+        corpus = corpus.encode('utf-8')
         for bytepair,merged_byte in self.merges.items():
             corpus = self._merge_bytepair(corpus,bytepair,merged_byte)
         return corpus
