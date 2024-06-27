@@ -3,8 +3,8 @@ cluster_name='jumbo'
 drive_addr='address'
 drive_usr='user'
 drive_pwd='pwd'
-slurm_conf_path=/clusterfs/jet/configs/slurm/
-worker_script=/clusterfs/jet/scripts/build_worker.sh
+slurm_conf_path=/clusterfs/jet/infra/configs/slurm/
+worker_script=/clusterfs/jet/infra/scripts/build_worker.sh
 torch_index=https://download.pytorch.org/whl/cpu
 
 nodes=()
