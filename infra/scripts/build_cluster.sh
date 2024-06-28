@@ -9,7 +9,7 @@ if [ ! -f "$config_file" ]; then
 fi
 source $config_file
 
-slurm_conf_path=~/jet/infra/configs/slurm/
+slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
 worker_script=~/jet/infra/scripts/build_worker.sh
 #---------------------
 
