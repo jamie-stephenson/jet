@@ -90,7 +90,7 @@ mkdir ~/jet_config_logs
 run_on_node() {
     local node=$1
     local script=$2
-    local args= ( "$node" "$3" "$4" "$5" "$6" )
+    local args=( "$node" "$3" "$4" "$5" "$6" )
     local mount_script="$7"
     local mount_args="$8"
 
