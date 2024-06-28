@@ -1,28 +1,30 @@
 #!/bin/bash
 
-sudo apt-get update
-
-#--RUN CONFIG SCRIPT--
-config_file="cluster_config.sh"
+#--CONFIGURE VARIABLES--
+config_file="~/infra/configs/cluster_config.sh"
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
     exit 1
 fi
 source $config_file
+
+slurm_conf_path=~/infra/configs/slurm/
+worker_script=~/infra/scripts/build_worker.sh
 #---------------------
 
-#-----MOUNT DRIVE-----
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install cifs-utils
-sudo mkdir /clusterfs
-echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
-sudo mount /clusterfs
+#-----MOUNT DRIVE----- TODO: support more fs types
+mount_script=~/infra/scripts/mount_$fs_type.sh 
+if [ $fs_type = 'cifs' ]; then
+    mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
+    source $mount_script $mount_args
+fi
 #---------------------
 
 #-----CLONE REPO------
-sudo chown $USER /clusterfs
-mkdir /clusterfs/jet/
-git clone https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
+sudo chown $USER $mount_dir
+mkdir $mount_dir/jet/
+git clone -b slurm-tests https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
 #---------------------
 
 #---EDIT SLURM.CONF---
@@ -67,7 +69,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 #-------SLURM---------
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
-sudo cp /etc/munge/munge.key /clusterfs
+sudo cp /etc/munge/munge.key $mount_dir
 sudo systemctl enable munge
 sudo systemctl start munge
 sudo systemctl enable slurmd
@@ -88,8 +90,9 @@ mkdir ~/jet_config_logs
 run_on_node() {
     local node=$1
     local script=$2
-    shift 2
-    local args=( "$node" "$@" )
+    local args= ( "$node" "$3" "$4" "$5" "$6" )
+    local mount_script="$7"
+    local mount_args="$8"
 
     output_file=~/jet_config_logs/$node.log
 
@@ -97,6 +100,7 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- $mount_args" < $mount_script > $output_file 2>&1
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $script > $output_file 2>&1
     fi
 }
@@ -104,7 +108,7 @@ run_on_node() {
 # Export the function to make it available to parallel
 export -f run_on_node
 
-args=( "$worker_script" "$drive_addr" "$drive_usr" "$drive_pwd" "$hosts" "$slurm_conf_path" "$torch_index" )
+args=( "$worker_script" "$hosts" "$slurm_conf_path" "$torch_index" "$mount_dir" "$mount_script" "$mount_args" )
 # Run worker_script in parallel on all nodes
 parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 #---------------------
@@ -116,8 +120,8 @@ sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
 mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
-pip install -r /clusterfs/jet/requirements.txt
+pip install -r $mount_dir/jet/requirements.txt
 pip install torch --index-url $torch_index
 deactivate
-mkdir -p /clusterfs/jet/logs/
+mkdir -p $mount_dir/jet/logs/
 #---------------------
