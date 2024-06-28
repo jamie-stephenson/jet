@@ -117,7 +117,6 @@ parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
 sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r $mount_dir/jet/requirements.txt
