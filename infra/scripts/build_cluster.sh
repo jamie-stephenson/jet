@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #--CONFIGURE VARIABLES--
-config_file="~/jet/infra/configs/cluster_config.sh"
+config_file=~/jet/infra/configs/cluster_config.sh
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
