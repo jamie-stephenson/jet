@@ -26,35 +26,15 @@ class Tokenizer:
     def from_corpus(cls, corpus, vocab_size, rank, world_size):
         """
         Trains new tokenizer from a dataset. When using distributed training, `corpus` 
-        should be the chunk of the dataset that the current rank will handle.
+        should be the chunk of the dataset ("opus") that the current rank will handle.
         """
         tokenizer = cls({}, rank, world_size)
         tokenizer.corpus = corpus
         tokenizer.__train(vocab_size)
 
         return tokenizer
-
-    def save_encoded_corpus(self,corpus,path,encoded_format):
-        """
-        Janky way of encoding and saving a corpus (that differs from the tokenizer corpus) 
-        that supports two different output formats.
-        """
-        save_mthd = f"_save_to_{encoded_format}"
-        dist.broadcast_object_list([self.merges]) # Ensure all ranks know correct merges
-        tokens = self.encode(corpus)
-        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
     
-    def encode(self, corpus):
-        corpus = corpus.encode('utf-8')
-        for bytepair,merged_byte in self.merges.items():
-            corpus = self._merge_bytepair(corpus,bytepair,merged_byte)
-        return corpus
-        
-    def decode(self, tokens: list) -> str:
-        print("WARNING: Execution of `Tokenizer.decode` currently only supported on a single process.")
-        for bytepair,merged_byte in reversed(list(self.merges.items())):
-            tokens = self._unmerge_byte(tokens,merged_byte,bytepair)
-        return bytes(tokens).decode('utf-8',errors='replace')
+    #--------------------TRAINING-METHODS---------------------
 
     def __train(self, vocab_size):
         """This method is only supposed to be accessed by the `from_corpus` factory method."""
@@ -70,6 +50,7 @@ class Tokenizer:
             t0 = time() 
             t_log = t0  
             print("\nTraining tokenizer...")
+
         while self.current_vocab_size < self.max_vocab_size:
             pair_to_merge = self._sync_bp_max()
             if self.rank == 0 and wandb.run is not None:
@@ -166,6 +147,20 @@ class Tokenizer:
         return dict(Counter(bytepairs))
     
     @staticmethod
+    def _regex_split(string):
+        return re.findall(re.compile(r'\s*\w+|\d+|\s*[!"#$%&\'‘’()*+,-./:;<=>?@\[\]^_`{}~]+'), string)
+    
+    #------------------END-OF-TRAINING-METHODS---------------------
+
+    #----------------------ENCODING-METHODS------------------------
+
+    def encode(self, corpus):
+        corpus = corpus.encode('utf-8')
+        for bytepair,merged_byte in self.merges.items():
+            corpus = self._merge_bytepair(corpus,bytepair,merged_byte)
+        return corpus
+    
+    @staticmethod
     def _merge_bytepair(lst: List[int],bytepair: Tuple[int,int],merged_byte: int) -> List[int]:
         new_lst = []
         for i in range(len(lst)):
@@ -174,6 +169,39 @@ class Tokenizer:
             else:
                 new_lst.append(lst[i]) 
         return new_lst
+    
+    def save_encoded_corpus(self,corpus,path,encoded_format):
+        """
+        Janky way of encoding and saving a corpus (that differs from the tokenizer corpus) 
+        that supports two different output formats.
+        """
+        save_mthd = f"_save_to_{encoded_format}"
+        dist.broadcast_object_list([self.merges]) # Ensure all ranks know correct merges
+        tokens = self.encode(corpus)
+        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
+
+    def save_encoded_tokenizer_corpus(self, path, encoded_format):
+        """Save encode tokenizer corpus as np.memmap or shards"""
+        save_mthd = f"_save_to_{encoded_format}"
+        tokens = self.get_encoded_tokenizer_corpus()
+        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)`
+
+    def get_encoded_tokenizer_corpus(self):
+        #must be called **after** `self.__train()` to return fully encoded tokenizer corpus.
+        encoded_corpus = []
+        for block in self.blocks:
+            encoded_corpus += block
+        return encoded_corpus
+    
+    #------------------END-OF-ENCODING-METHODS--------------------
+
+    #----------------------DECODING-METHODS-----------------------
+        
+    def decode(self, tokens: list) -> str:
+        print("WARNING: Execution of `Tokenizer.decode` currently only supported on a single process.")
+        for bytepair,merged_byte in reversed(list(self.merges.items())):
+            tokens = self._unmerge_byte(tokens,merged_byte,bytepair)
+        return bytes(tokens).decode('utf-8',errors='replace')
     
     @staticmethod
     def _unmerge_byte(lst: List[int], merged_byte: int, bytepair: Tuple[int,int]) -> List[int]:
@@ -185,24 +213,14 @@ class Tokenizer:
                 new_lst.append(lst[i])
         return new_lst
     
-    @staticmethod
-    def load_corpus(path):
-        with open(path, 'r') as file:
-            file_contents = file.read()
-        return file_contents
+    def decoded_tokens(self):
+        """lists all merged token chunks as plain text"""
+        for token in self.merges.values():
+            print(f"Token {token} decodes to {self.decode([token])}")
 
-    def save_encoded_tokenizer_corpus(self, path, encoded_format):
-        """Save encode tokenizer corpus as np.memmap or shards"""
-        save_mthd = f"_save_to_{encoded_format}"
-        tokens = self.get_encoded_tokenizer_corpus()
-        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)`
+    #------------------END-OF-DECODING-METHODS--------------------
 
-    def get_encoded_tokenizer_corpus(self):
-        #must be called **after** `self.train()` to return fully encoded tokenizer corpus.
-        encoded_corpus = []
-        for block in self.blocks:
-            encoded_corpus += block
-        return encoded_corpus
+    #----------------------SAVING-METHODS-------------------------
 
     def _save_to_shards(self,tokens,path):
         """
@@ -210,15 +228,14 @@ class Tokenizer:
         The last shard will have <= `shard_size` tokens.
 
         Given that all shards have a fixed number of tokens, and each rank will end up
-        with a different number of tokens, each rank distributed their tokens as follows:
+        with a different number of tokens, each rank distributes their tokens as follows:
         - Fill up as many shards as possible with the tokens on that rank
         - Partially fill a shard with the remaining tokens and leave a pointer where these tokens get to
         - Pass the partially full shard, the pointer and the shard_idx to the next rank
-          Here we have encoded that the pointer is at position 5 in shard 8
         This process continues on all ranks and then rank 0 will put all remaining tokens into a final partially full shard.           
         """
 
-        shard_size = int(1e8) #TODO make this an argument 
+        shard_size = int(1e8) #TODO make this flexible
 
         shard =  torch.zeros((shard_size,), dtype=torch.int16)
         shard_idx = torch.tensor(0)
@@ -287,23 +304,26 @@ class Tokenizer:
                 del arr
             dist.barrier()
 
-    @staticmethod
-    def load_merges(path):
-        with open(path, 'rb') as file:
-            merges = pickle.load(file)
-        return merges
-    
     def save_merges(self, path):
         if self.rank == 0:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as file:
                 pickle.dump(self.merges, file)
 
+    #-----------------END-OF-SAVING-METHODS-----------------------
+
+    #--------------------LOADING-METHODS--------------------------
+
     @staticmethod
-    def _regex_split(string):
-        return re.findall(re.compile(r'\s*\w+|\d+|\s*[!"#$%&\'‘’()*+,-./:;<=>?@\[\]^_`{}~]+'), string)
+    def load_merges(path):
+        with open(path, 'rb') as file:
+            merges = pickle.load(file)
+        return merges
+
+    @staticmethod
+    def load_corpus(path):
+        with open(path, 'r') as file:
+            file_contents = file.read()
+        return file_contents
     
-    def decoded_tokens(self):
-        """lists all merged token chunks as plain text"""
-        for token in self.merges.values():
-            print(f"Token {token} decodes to {self.decode([token])}")
+    #-------------------END-OF-LOADING-METHODS---------------------
