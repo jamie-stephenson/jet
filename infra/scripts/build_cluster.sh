@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #--CONFIGURE VARIABLES--
-config_file="~/infra/configs/cluster_config.sh"
+config_file="~/jet/infra/configs/cluster_config.sh"
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
@@ -9,12 +9,12 @@ if [ ! -f "$config_file" ]; then
 fi
 source $config_file
 
-slurm_conf_path=~/infra/configs/slurm/
-worker_script=~/infra/scripts/build_worker.sh
+slurm_conf_path=~/jet/infra/configs/slurm/
+worker_script=~/jet/infra/scripts/build_worker.sh
 #---------------------
 
 #-----MOUNT DRIVE----- TODO: support more fs types
-mount_script=~/infra/scripts/mount_$fs_type.sh 
+mount_script=~/jet/infra/scripts/mount_$fs_type.sh 
 if [ $fs_type = 'cifs' ]; then
     mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
     source $mount_script $mount_args
