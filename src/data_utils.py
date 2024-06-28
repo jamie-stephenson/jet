@@ -27,8 +27,9 @@ class ShardedDataset(Dataset):
     Class to sample from a dataset that is split into numpy array shards and stored at `path`.
     Each shard is assumed to have equal `shard_size` except the last shard in the dir, which has size <= `shard_size`.
     """
-    def __init__(self, path, seq_len):
-        self.shards = [os.path.join(path,shard) for shard in sorted(os.listdir(path))]
+    def __init__(self, path, seq_len, split):
+        # Currently you have to manually choose splits by renaming files, this will be imporved if sharded ends up being better than mmap. 
+        self.shards = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard] 
         self.shard_size = np.load(self.shards[0], mmap_mode='r').shape[0]
         self.shard_remainder = np.load(self.shards[-1], mmap_mode='r').shape[0]
         self.nshards = len(self.shards) 
@@ -37,7 +38,7 @@ class ShardedDataset(Dataset):
     def __len__(self):
         return self.shard_size*(self.nshards-1)+self.shard_remainder  
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx): #TODO Optimise
         shard_idx = idx//self.shard_size
         start_idx = idx%self.shard_size
         # Check if sample will fit within shard. If not go to next shard. TODO find better alternative to this
@@ -54,8 +55,8 @@ class CustomBatchSampler(Sampler):
     Samples `batch_size` valid indices randomly without replacement.
     The valid indices are multiples of `seq_len-overlap`. 
     """
-    def __init__(self, length, rank, world_size, args):
-        max_idx = length - args.seq_len - 1
+    def __init__(self, split_length, rank, world_size, args):
+        max_idx = split_length - args.seq_len - 1
         self.indices = torch.arange(0,max_idx,args.seq_len-args.overlap)
         self.nsamples = len(self.indices) # Total number of samples in dataset
         self.length = self.nsamples//(world_size*args.batch_size) # Length of sampler 
@@ -73,14 +74,19 @@ class CustomBatchSampler(Sampler):
     def __len__(self):
         return self.length #I have no idea if this is right, changing it seems to do nothing.
 
-def get_dataloader(path,args,mode):
+def get_dataloader(path,args,split):
+    dtype=np.uint16      
     if args.encoded_format == 'mmap':
         path+='.mmap'
-        data = np.memmap(path,dtype=np.uint16,mode='r+')
+        dataset_length = np.memmap(path,dtype,mode='r').size 
+        offset = int(0.99*dataset_length)*np.dtype(dtype).itemsize if split=='val' else 0
+        shape = None if split=='val' else (offset,) 
+        data = np.memmap(path,dtype,mode='r+',offset=offset,shape=shape)
         dataset = ArrayDataset(data,args.seq_len)
     elif args.encoded_format == 'shards':
-        dataset = ShardedDataset(path,args.seq_len)
+        dataset = ShardedDataset(path,args.seq_len,split)
 
     sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
     dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
     return dataloader
+
