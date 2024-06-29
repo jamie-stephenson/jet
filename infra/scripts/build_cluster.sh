@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #--CONFIGURE VARIABLES--
-config_file="~/jet/infra/configs/cluster_config.sh"
+config_file=~/jet/infra/configs/cluster_config.sh
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
@@ -9,7 +9,7 @@ if [ ! -f "$config_file" ]; then
 fi
 source $config_file
 
-slurm_conf_path=~/jet/infra/configs/slurm/
+slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
 worker_script=~/jet/infra/scripts/build_worker.sh
 #---------------------
 
@@ -117,7 +117,6 @@ parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
 sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-mkdir envs
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
 pip install -r $mount_dir/jet/requirements.txt
