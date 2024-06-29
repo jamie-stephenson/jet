@@ -5,6 +5,7 @@ hosts="$2"
 slurm_conf_path="$3"
 torch_index="$4"
 mount_dir="$5"
+python_env_script="$6"
 
 #---UPDATE HOSTNAME--- 
 sudo hostname $node  
@@ -28,13 +29,6 @@ sudo systemctl enable slurmd
 sudo systemctl start slurmd
 #---------------------
 
-#-PYTHON ENVIRONMENT--
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11
-sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-python3.11 -m venv ~/envs/jet
-source ~/envs/jet/bin/activate
-pip install -r $mount_dir/jet/requirements.txt
-pip install torch --index-url $torch_index
-deactivate
+#-----PYTHON ENV------
+source $python_env_script $torch_index $mount_dir
 #---------------------
