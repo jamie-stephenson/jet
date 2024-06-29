@@ -10,7 +10,8 @@ fi
 source $config_file
 
 slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
-worker_script=~/jet/infra/scripts/build_worker.sh
+worker_script=$mount_dir/jet/infra/scripts/build_worker.sh
+python_env_script=$mount_dir/jet/infra/scripts/python_env.sh
 #---------------------
 
 #-----MOUNT DRIVE----- TODO: support more fs types
@@ -83,17 +84,14 @@ sudo systemctl start slurmctld
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install parallel
 #---------------------
 
-#--RUN WORKER CONFIG--
+#--BUILD WORKERS--
 touch ~/.ssh/known_hosts
 chmod 600 ~/.ssh/known_hosts
 mkdir ~/jet_config_logs
 
 run_on_node() {
     local node=$1
-    local script=$2
-    local args=( "$node" "$3" "$4" "$5" "$6" )
-    local mount_script="$7"
-    local mount_args="$8"
+    local args=( $node "$hosts" $slurm_conf_path $torch_index $mount_dir $python_env_script )
 
     output_file=~/jet_config_logs/$node.log
 
@@ -102,26 +100,17 @@ run_on_node() {
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- $mount_args" < $mount_script > $output_file 2>&1
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $script > $output_file 2>&1
+        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $worker_script > $output_file 2>&1
+    else
+        source $python_env_script $torch_index $mount_dir
+        mkdir -p $mount_dir/jet/logs/
     fi
 }
 
 # Export the function to make it available to parallel
 export -f run_on_node
 
-args=( "$worker_script" "$hosts" "$slurm_conf_path" "$torch_index" "$mount_dir" "$mount_script" "$mount_args" )
-# Run worker_script in parallel on all nodes
-parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
-#---------------------
 
-#-PYTHON ENVIRONMENT--
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
-sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-python3.11 -m venv ~/envs/jet
-source ~/envs/jet/bin/activate
-pip install -r $mount_dir/jet/requirements.txt
-pip install torch --index-url $torch_index
-deactivate
-mkdir -p $mount_dir/jet/logs/
+# Run worker_script in parallel on all nodes
+parallel -j 0 run_on_node {} ::: "${nodes[@]}"
 #---------------------
