@@ -27,7 +27,7 @@ mkdir $mount_dir/jet/
 git clone -b slurm-tests https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
 #---------------------
 
-#---EDIT SLURM.CONF---
+#-EDIT SLURM CONFIGS--
 slurm_nodes=""
 for node in "${nodes[@]}"; do
     name="${node}[name]"
@@ -46,6 +46,7 @@ last_index=$(( ${#nodes[@]} - 1 )) # Note: this relies on strict naming pattern:
 node_string="node[01-$(printf "%02d" $last_index)] "
 
 sudo sed -i "s/Nodes= /Nodes=$node_string/" ${slurm_conf_path}slurm.conf
+echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
 #---------------------
 
 #---UPDATE HOSTNAME--- 
