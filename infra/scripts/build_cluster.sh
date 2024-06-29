@@ -107,9 +107,9 @@ run_on_node() {
     fi
 }
 
-# Export the function to make it available to parallel
+# Export the function and vars to make them available to parallel
 export -f run_on_node
-
+export worker_script hosts slurm_conf_path torch_index mount_dir mount_script mount_args python_env_script
 
 # Run worker_script in parallel on all nodes
 parallel -j 0 run_on_node {} ::: "${nodes[@]}"
