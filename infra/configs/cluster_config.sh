@@ -3,6 +3,9 @@
 #---Name---
 cluster_name='jumbo'
 
+#---Key---
+key_name='name'
+
 #---Filesystem---
 fs_type=cifs
 mount_dir=/clusterfs
