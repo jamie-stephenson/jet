@@ -50,6 +50,11 @@ sudo sed -i "s/Nodes= /Nodes=$node_string/" ${slurm_conf_path}slurm.conf
 echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
 #---------------------
 
+#----SLURM LOGGING----
+mkdir -p $mount_dir/jet/slurmlogs/
+sudo sed -i "s@#SBATCH --output=@#SBATCH --output=$mount_dir/jet/slurmlogs/%j.log@" $mount_dir/jet/slurm_torchrun.sh
+#---------------------
+
 #---UPDATE HOSTNAME--- 
 sudo hostname node00  
 sudo sed -i 2d /etc/hosts
@@ -103,7 +108,6 @@ run_on_node() {
         ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $worker_script > $output_file 2>&1
     else
         source $python_env_script $torch_index $mount_dir
-        mkdir -p $mount_dir/jet/logs/
     fi
 }
 
