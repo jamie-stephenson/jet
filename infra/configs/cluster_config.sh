@@ -1,12 +1,22 @@
 #!/bin/bash
+
+#---Name---
 cluster_name='jumbo'
+
+#---Key---
+key_name='name'
+
+#---Filesystem---
+fs_type=cifs
+mount_dir=/clusterfs
 drive_addr='address'
 drive_usr='user'
 drive_pwd='pwd'
-slurm_conf_path=/clusterfs/jet/infra/configs/slurm/
-worker_script=/clusterfs/jet/infra/scripts/build_worker.sh
+
+#---Python-Env---
 torch_index=https://download.pytorch.org/whl/cpu
 
+#---Nodes---
 nodes=()
 
 declare -A node00=(

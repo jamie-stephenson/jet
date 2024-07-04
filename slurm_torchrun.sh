@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 #SBATCH --time=01:00:00
-#SBATCH --output=/clusterfs/jet/logs/jet_dist_%j.log
+#SBATCH --output=
 
 # Activate the virtual environment
 source ~/envs/jet/bin/activate

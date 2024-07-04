@@ -1,31 +1,36 @@
 #!/bin/bash
 
-sudo apt-get update
-
-#--RUN CONFIG SCRIPT--
-config_file="cluster_config.sh"
+#--CONFIGURE VARIABLES--
+config_file=~/jet/infra/configs/cluster_config.sh
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
     exit 1
 fi
 source $config_file
+
+slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
+worker_script=$mount_dir/jet/infra/scripts/build_worker.sh
+python_env_script=$mount_dir/jet/infra/scripts/python_env.sh
 #---------------------
 
-#-----MOUNT DRIVE-----
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install cifs-utils
-sudo mkdir /clusterfs
-echo "$drive_addr /clusterfs cifs user=$drive_usr,password=$drive_pwd,rw,uid=1000,gid=1000,users 0 0" | sudo tee -a /etc/fstab >/dev/null
-sudo mount /clusterfs
+#-----MOUNT DRIVE----- TODO: support more fs types
+mount_script=~/jet/infra/scripts/mounts/mount_$fs_type.sh 
+if [ $fs_type = 'cifs' ]; then
+    mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
+    source $mount_script $mount_args
+elif [ $fs_type = 'none' ]; then
+    mount_args="$mount_dir"
+fi
 #---------------------
 
 #-----CLONE REPO------
-sudo chown $USER /clusterfs
-mkdir /clusterfs/jet/
-git clone https://github.com/jamie-stephenson/jet.git /clusterfs/jet/
+sudo chown $USER $mount_dir
+mkdir $mount_dir/jet/
+git clone https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
 #---------------------
 
-#---EDIT SLURM.CONF---
+#-EDIT SLURM CONFIGS--
 slurm_nodes=""
 for node in "${nodes[@]}"; do
     name="${node}[name]"
@@ -44,6 +49,12 @@ last_index=$(( ${#nodes[@]} - 1 )) # Note: this relies on strict naming pattern:
 node_string="node[01-$(printf "%02d" $last_index)] "
 
 sudo sed -i "s/Nodes= /Nodes=$node_string/" ${slurm_conf_path}slurm.conf
+echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
+#---------------------
+
+#----SLURM LOGGING----
+mkdir -p $mount_dir/jet/slurmlogs/
+sudo sed -i "s@#SBATCH --output=@#SBATCH --output=$mount_dir/jet/slurmlogs/%j.log@" $mount_dir/jet/slurm_torchrun.sh
 #---------------------
 
 #---UPDATE HOSTNAME--- 
@@ -67,7 +78,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 #-------SLURM---------
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install slurm-wlm -y
 sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
-sudo cp /etc/munge/munge.key /clusterfs
+sudo cp /etc/munge/munge.key $mount_dir
 sudo systemctl enable munge
 sudo systemctl start munge
 sudo systemctl enable slurmd
@@ -80,16 +91,14 @@ sudo systemctl start slurmctld
 sudo apt-get -o DPkg::Lock::Timeout=20 -y install parallel
 #---------------------
 
-#--RUN WORKER CONFIG--
+#--BUILD WORKERS--
 touch ~/.ssh/known_hosts
 chmod 600 ~/.ssh/known_hosts
 mkdir ~/jet_config_logs
 
 run_on_node() {
     local node=$1
-    local script=$2
-    shift 2
-    local args=( "$node" "$@" )
+    local args=( $node "$hosts" $slurm_conf_path $torch_index $mount_dir $python_env_script )
 
     output_file=~/jet_config_logs/$node.log
 
@@ -97,27 +106,17 @@ run_on_node() {
         if ! ssh-keygen -F $node; then
             ssh-keyscan -t ed25519 -H $node >> ~/.ssh/known_hosts
         fi
-        ssh -i ~/.ssh/id_ed25519 $USER@$node "bash -s -- ${args[@]@Q}" < $script > $output_file 2>&1
+        ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- $mount_args" < $mount_script > $output_file 2>&1
+        ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- ${args[@]@Q}" < $worker_script > $output_file 2>&1
+    else
+        source $python_env_script $torch_index $mount_dir
     fi
 }
 
-# Export the function to make it available to parallel
+# Export the function and vars to make them available to parallel
 export -f run_on_node
+export worker_script hosts slurm_conf_path torch_index mount_dir mount_script mount_args python_env_script key_name
 
-args=( "$worker_script" "$drive_addr" "$drive_usr" "$drive_pwd" "$hosts" "$slurm_conf_path" "$torch_index" )
 # Run worker_script in parallel on all nodes
-parallel -j 0 run_on_node {} "${args[@]@Q}" ::: "${nodes[@]}"
-#---------------------
-
-#-PYTHON ENVIRONMENT--
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install python3.11
-sudo apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-mkdir envs
-python3.11 -m venv ~/envs/jet
-source ~/envs/jet/bin/activate
-pip install -r /clusterfs/jet/requirements.txt
-pip install torch --index-url $torch_index
-deactivate
-mkdir -p /clusterfs/jet/logs/
+parallel -j 0 run_on_node {} ::: "${nodes[@]}"
 #---------------------
