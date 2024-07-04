@@ -13,7 +13,6 @@ def main(args):
 
     paths = PathFetcher(args)
 
-    
     if not args.no_wandb and rank == 0:
         wandb.init(project='jet',name=f"encode_ws{world_size}_vs{args.vocab_size}",config=args)
     

@@ -7,8 +7,9 @@ train_size = 1e5 # We use 100,000 documents e.g. for training a tokenizer
 #-----------------
 
 def get_dataset(path,rank,world_size):
-    assert os.path.exists(path), (
-        f"Dataset fineweb-edu does not exist at {path}.\n"
+    path_to_data = path.replace('100k','edu')
+    assert os.path.exists(path_to_data), (
+        f"Dataset fineweb-edu does not exist at {path_to_data}.\n"
         f"Please download by running `python download.py --corpus fineweb_edu`"
     ) #TODO stop this from duplicating across processes while still ending process group gracefully
 
@@ -18,17 +19,10 @@ def get_dataset(path,rank,world_size):
         path='HuggingFaceFW/fineweb-edu',
         name='sample-10BT',
         split=f'train[{start}:{end}]', 
-        cache_dir=path
+        cache_dir=path_to_data
     )
 
     return '\n'.join(dataset['text'])
 
 def download_dataset(path,nproc):
-
-    load_dataset(
-            path='HuggingFaceFW/fineweb-edu',
-            name='sample-10BT',
-            split='train',
-            cache_dir=path,
-            num_proc=nproc
-    )
+    print("This dataset is a subset of the fineweb_edu dataset, please download that instead.")
