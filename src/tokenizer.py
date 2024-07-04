@@ -155,20 +155,20 @@ class Tokenizer:
     #----------------------ENCODING-METHODS------------------------
 
     def encode(self, corpus):
-        corpus = corpus.encode('utf-8')
+        corpus = list(corpus.encode('utf-8'))
         for bytepair,merged_byte in self.merges.items():
             corpus = self._merge_bytepair(corpus,bytepair,merged_byte)
         return corpus
     
     @staticmethod
     def _merge_bytepair(lst: List[int],bytepair: Tuple[int,int],merged_byte: int) -> List[int]:
-        new_lst = []
-        for i in range(len(lst)):
-            if i > 0 and lst[i-1:i+1]==list(bytepair) and new_lst[-1]!=merged_byte:
-                new_lst[-1] = merged_byte
-            else:
-                new_lst.append(lst[i]) 
-        return new_lst
+        i = 1
+        while i < len(lst):
+            if lst[i-1:i+1]==list(bytepair):                
+                del lst[i]
+                lst[i-1] = merged_byte
+            i+=1
+        return lst
     
     def save_encoded_corpus(self,corpus,path,encoded_format):
         """

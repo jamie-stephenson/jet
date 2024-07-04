@@ -38,7 +38,7 @@ def split_txt(path,rank,world_size):
     Used to split a .txt corpus into `world_size` roughly equal opera, while 
     maintaining UTF-8 decodability. Used in distributed tokenizers.
 
-    Returns only the opus that will be processed on rank `rank`.
+    Returns only the opus that will be processed on rank `rank` (in byte form).
     """
     # Find start and end idx of opus, making sure that all
     # opera have a pairwise difference in length of at most 1.
