@@ -48,7 +48,7 @@ def split_txt(path,rank,world_size):
 
     return opus_bytes
 
-def find_opus_indices(n,rank,world_size):
+def find_opus_indices(n: int,rank: int,world_size: int):
     """
     Simple mathematical helper function that finds the start and end indices that split 
     `n` objects into `world_size` different "groups" whose sizes differ by at most 1.

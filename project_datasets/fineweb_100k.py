@@ -3,7 +3,7 @@ from src.dist_utils import find_opus_indices
 import os
 
 #-----CONFIG------
-train_size = 1e5 # We use 100,000 documents e.g. for training a tokenizer 
+train_size = int(1e5) # We use 100,000 documents e.g. for training a tokenizer 
 #-----------------
 
 def get_dataset(path,rank,world_size):
