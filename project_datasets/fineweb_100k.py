@@ -2,9 +2,8 @@ from datasets import load_dataset
 from src.dist_utils import find_opus_indices
 import os
 
-
 #-----CONFIG------
-train_size = 9672101 # All documents 
+train_size = 1e5 # We use 100,000 documents e.g. for training a tokenizer 
 #-----------------
 
 def get_dataset(path,rank,world_size):
