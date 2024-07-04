@@ -53,13 +53,14 @@ class Tokenizer:
 
         while self.current_vocab_size < self.max_vocab_size:
             pair_to_merge = self._sync_bp_max()
-            if self.rank == 0 and wandb.run is not None:
-                wandb.log({
-                    "Total Time": time()-t0,
-                    "Iter Time": time()-t_log,
-                })
-                t_log = time()
-                self.merges[pair_to_merge] = self.current_vocab_size
+            if self.rank == 0:
+                self.merges[pair_to_merge] = self.current_vocab_size                
+                if wandb.run is not None:                    
+                    wandb.log({
+                        "Total Time": time()-t0,
+                        "Iter Time": time()-t_log,
+                    })
+                    t_log = time()
             self._merge_and_update_bp_counts(pair_to_merge)
             self.current_vocab_size += 1
 
@@ -176,7 +177,9 @@ class Tokenizer:
         that supports two different output formats.
         """
         save_mthd = f"_save_to_{encoded_format}"
-        dist.broadcast_object_list([self.merges]) # Ensure all ranks know correct merges
+        merges_list = [self.merges]
+        dist.broadcast_object_list(merges_list) # Ensure all ranks know correct merges
+        self.merges = merges_list[0] # Ensure all ranks know correct merges
         tokens = self.encode(corpus)
         getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
 
