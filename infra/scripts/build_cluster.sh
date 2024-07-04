@@ -27,7 +27,7 @@ fi
 #-----CLONE REPO------
 sudo chown $USER $mount_dir
 mkdir $mount_dir/jet/
-git clone -b slurm-tests https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
+git clone https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
 #---------------------
 
 #-EDIT SLURM CONFIGS--

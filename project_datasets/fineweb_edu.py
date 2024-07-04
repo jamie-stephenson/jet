@@ -17,7 +17,7 @@ def get_dataset(path,rank,world_size):
     dataset = load_dataset(
         path='HuggingFaceFW/fineweb-edu',
         name='sample-10BT',
-        split=f'train[{start}:{end}]', # I think this dataset only has a train split so we make our own val split
+        split=f'train[{start}:{end}]', 
         cache_dir=path
     )
 
