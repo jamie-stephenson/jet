@@ -70,7 +70,9 @@ class Tokenizer:
     def _sync_bp_max(self) -> Tuple:
 
         if self.current_vocab_size%256==0:
-            self.bp_counts = self._count_bytepairs(self.blocks)
+            self.bp_counts = {}
+            for block in self.blocks:
+                self._count_bps(block,self.bp_counts)
 
         all_bp_counts = [None]*self.world_size
         dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
@@ -139,13 +141,14 @@ class Tokenizer:
             self.bp_counts[bp] -= 1
         new_bp = (bp[0],self.current_vocab_size) if location == "before" else (self.current_vocab_size,bp[1])
         self.bp_counts[new_bp] = self.bp_counts.get(new_bp,0) + 1
-
+    
     @staticmethod
-    def _count_bytepairs(blocks: List[list]) -> dict:
-        bytepairs = []
-        for block in blocks:
-            bytepairs += [(block[i],block[i+1]) for i in range(len(block)-1)]
-        return dict(Counter(bytepairs))
+    def _count_bps(block, bp_counts=None):
+        """bp_counts for a single block"""
+        bp_counts = {} if bp_counts is None else bp_counts
+        for pair in zip(block, block[1:]):
+            bp_counts[pair] = bp_counts.get(pair, 0) + 1
+        return bp_counts
     
     @staticmethod
     def _regex_split(string):
@@ -155,21 +158,27 @@ class Tokenizer:
 
     #----------------------ENCODING-METHODS------------------------
 
-    def encode(self, corpus):
-        corpus = list(corpus.encode('utf-8'))
-        for bytepair,merged_byte in self.merges.items():
-            corpus = self._merge_bytepair(corpus,bytepair,merged_byte)
-        return corpus
+    def encode(self, corpus: str):
+        blocks = [list(block.encode('utf-8')) for block in self._regex_split(corpus)]
+        for block in blocks:
+            while len(block) >= 2:
+                bp_counts = self._count_bps(block)
+                bp = min(bp_counts, key=lambda p: self.merges.get(p, float("inf")))
+                if bp not in self.merges:
+                    break
+                merged_byte = self.merges[bp]
+                block = self._merge_bytepair(block,bp,merged_byte)
+        return self.flatten_blocks(blocks)
     
     @staticmethod
-    def _merge_bytepair(lst: List[int],bytepair: Tuple[int,int],merged_byte: int) -> List[int]:
+    def _merge_bytepair(block: List[int], bytepair: Tuple[int,int],merged_byte: int) -> List[int]:  
         i = 1
-        while i < len(lst):
-            if lst[i-1:i+1]==list(bytepair):                
-                del lst[i]
-                lst[i-1] = merged_byte
+        while i < len(block):
+            if block[i-1:i+1]==list(bytepair):                
+                del block[i]
+                block[i-1] = merged_byte
             i+=1
-        return lst
+        return block
     
     def save_encoded_corpus(self,corpus,path,encoded_format):
         """
@@ -179,22 +188,25 @@ class Tokenizer:
         save_mthd = f"_save_to_{encoded_format}"
         merges_list = [self.merges]
         dist.broadcast_object_list(merges_list) # Ensure all ranks know correct merges
-        self.merges = merges_list[0] # Ensure all ranks know correct merges
+        self.merges = merges_list[0]
         tokens = self.encode(corpus)
         getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
 
     def save_encoded_tokenizer_corpus(self, path, encoded_format):
-        """Save encode tokenizer corpus as np.memmap or shards"""
+        """
+        Save encoded tokenizer corpus as np.memmap or shards.
+        Must be called after `__train`.
+        """
         save_mthd = f"_save_to_{encoded_format}"
-        tokens = self.get_encoded_tokenizer_corpus()
+        tokens = self.flatten_blocks(self.blocks)
         getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)`
 
-    def get_encoded_tokenizer_corpus(self):
-        #must be called **after** `self.__train()` to return fully encoded tokenizer corpus.
-        encoded_corpus = []
-        for block in self.blocks:
-            encoded_corpus += block
-        return encoded_corpus
+    @staticmethod
+    def flatten_blocks(blocks: List[List[int]]) -> List[int]:
+        tokens = []
+        for block in blocks:
+            tokens += block
+        return tokens
     
     #------------------END-OF-ENCODING-METHODS--------------------
 
