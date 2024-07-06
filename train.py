@@ -23,7 +23,7 @@ def main(args):
     tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer) # Only used for sample output generation during training
     model = get_model(args)
     train_dataloader = get_dataloader(paths.encoded_corpus, args, 'train')
-    eval_dataloader = get_dataloader(paths.encoded_corpus, args, 'eval')
+    eval_dataloader = get_dataloader(paths.encoded_corpus, args, 'val')
     optimizer = get_optimizer(args.optimizer, model, args)
     lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader), args)
     
@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
     torch.manual_seed(90)
 
-    if torch.cuda.is_available():
+    if 'cuda' in args.device:
         args.device_id = [int(os.getenv('LOCAL_RANK','0'))]
         backend = 'nccl'  
     else:

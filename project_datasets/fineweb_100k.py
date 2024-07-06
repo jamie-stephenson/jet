@@ -3,7 +3,7 @@ from src.dist_utils import find_opus_indices
 import os
 
 #-----CONFIG------
-train_size = int(1e5) # We use 100,000 documents e.g. for training a tokenizer 
+ndocs = int(1e5) # We use 100,000 documents e.g. for training a tokenizer 
 #-----------------
 
 def get_dataset(path,rank,world_size):
@@ -13,7 +13,7 @@ def get_dataset(path,rank,world_size):
         f"Please download by running `python download.py --corpus fineweb_edu`"
     ) #TODO stop this from duplicating across processes while still ending process group gracefully
 
-    start, end = find_opus_indices(train_size,rank,world_size)
+    start, end = find_opus_indices(ndocs,rank,world_size)
 
     dataset = load_dataset(
         path='HuggingFaceFW/fineweb-edu',
