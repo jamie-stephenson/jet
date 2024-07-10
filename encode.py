@@ -8,7 +8,6 @@ import os
 import wandb
 
 def main(args):
-
     rank, world_size = dist.get_rank(), dist.get_world_size()
 
     paths = PathFetcher(args)
@@ -24,7 +23,7 @@ def main(args):
                 print(f"Encoded corpus already exists at {paths.encoded_corpus}.")
         else:
             tokenizer = Tokenizer.from_corpus(corpus,args.vocab_size,rank,world_size)
-            tokenizer.save_encoded_tokenizer_corpus(paths.encoded_corpus,args.encoded_format)
+            tokenizer.save_encoded_tokenizer_corpus(paths.encoded_corpus)
             tokenizer.save_merges(paths.tokenizer)
     else:
         if os.path.exists(paths.tokenizer):
@@ -32,10 +31,9 @@ def main(args):
         else:
             tokenizer_corpus = get_dataset(args.tokenizer_corpus,paths.tokenizer_corpus,rank,world_size)
             tokenizer = Tokenizer.from_corpus(tokenizer_corpus,args.vocab_size,rank,world_size)
-            tokenizer.save_encoded_tokenizer_corpus(paths.encoded_tokenizer_corpus,args.encoded_format)
+            tokenizer.save_encoded_tokenizer_corpus(paths.encoded_tokenizer_corpus)
             tokenizer.save_merges(paths.tokenizer)
-        tokenizer.save_encoded_corpus(corpus,paths.encoded_corpus,args.encoded_format)
-
+        tokenizer.save_encoded_corpus(corpus,paths.encoded_corpus)
 
 def get_dataset(name, path, rank, world_size):
     
@@ -52,12 +50,6 @@ if __name__ == '__main__':
         "--corpus",
         type=str,
         help="The corpus to be encoded."
-    )
-    
-    parser.add_argument(
-        "--encoded_format",
-        choices=['shards','mmap'],
-        help="The desired format of the encoded corpus. If not already encoded, both corpora will be encoded in this format."
     )
 
     parser.add_argument(
@@ -94,7 +86,7 @@ if __name__ == '__main__':
     if not args.tokenizer_corpus:
         args.tokenizer_corpus = args.corpus 
 
-    setup('gloo')
+    setup('gloo')   
     main(args)
     cleanup()
 

@@ -28,8 +28,7 @@ class ShardedDataset(Dataset):
     Each shard is assumed to have equal `shard_size` except the last shard in the dir, which has size <= `shard_size`.
     """
     def __init__(self, path, seq_len, split):
-        # Currently you have to manually choose splits by renaming files, this will be imporved if sharded ends up being better than mmap. 
-        self.shards = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard] 
+        self.shards = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard] 
         self.shard_size = np.load(self.shards[0], mmap_mode='r').shape[0]
         self.shard_remainder = np.load(self.shards[-1], mmap_mode='r').shape[0]
         self.nshards = len(self.shards) 
@@ -77,11 +76,8 @@ class CustomBatchSampler(Sampler):
 def get_dataloader(path,args,split):
     dtype=np.uint16      
     if args.encoded_format == 'mmap':
-        path+='.mmap'
-        dataset_length = np.memmap(path,dtype,mode='r').size 
-        offset = int(0.99*dataset_length)*np.dtype(dtype).itemsize if split=='val' else 0
-        shape = None if split=='val' else (offset,) 
-        data = np.memmap(path,dtype,mode='r+',offset=offset,shape=shape)
+        path = os.path.join(path,f"{split}.mmap")
+        data = np.memmap(path,dtype,mode='r+')
         dataset = ArrayDataset(data,args.seq_len)
     elif args.encoded_format == 'shards':
         dataset = ShardedDataset(path,args.seq_len,split)

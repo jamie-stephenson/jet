@@ -57,7 +57,8 @@ def find_opus_indices(n: int,rank: int,world_size: int):
 
     Note: This is used to split both Hugging Face and .txt corpora. In each case
     the "groups" represent different things:
-    - HF: we have groups of shards that are concatenated to form opera.
+    - HF: we have groups of examples that are concatenated to form opera.
+      Each example is normally a document of some sort.
     - .txt: we have groups of bytes that are concatenated to form opera. 
     """
     quotient = n//world_size

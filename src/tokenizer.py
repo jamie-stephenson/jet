@@ -1,6 +1,7 @@
 import os
-import torch
 import torch.distributed as dist
+from datasets.utils.logging import disable_progress_bar, enable_progress_bar
+import multiprocessing as mp
 import numpy as np
 import re
 from collections import Counter
@@ -8,28 +9,30 @@ import pickle
 from typing import Tuple, List
 from time import time
 import wandb
+from tqdm import tqdm
     
 class Tokenizer:
     """
     Class for training and using tokenizers that is (almost) distribution agnositic.
     """
-    def __init__(self, merges, rank, world_size) -> None:
+    def __init__(self, merges, rank, world_size, pattern=r'\s*\w+|\d+|\s*[!"#$%&\'‘’()*+,-./:;<=>?@\[\]^_`{}~]+') -> None:
         self.rank = rank
         self.world_size = world_size
         self.merges = merges
+        self.pattern = re.compile(pattern)
 
     @classmethod
     def from_pickled_merges(cls, path, rank=0, world_size=1):
         return cls(cls.load_merges(path), rank, world_size)
 
     @classmethod
-    def from_corpus(cls, corpus, vocab_size, rank, world_size):
+    def from_corpus(cls, dataset, vocab_size, rank, world_size):
         """
         Trains new tokenizer from a dataset. When using distributed training, `corpus` 
-        should be the chunk of the dataset ("opus") that the current rank will handle.
+        should be the chunk of the dataset that the current rank will handle.
         """
         tokenizer = cls({}, rank, world_size)
-        tokenizer.corpus = corpus
+        tokenizer.corpus = '\n'.join(dataset['text'])
         tokenizer.__train(vocab_size)
 
         return tokenizer
@@ -150,16 +153,15 @@ class Tokenizer:
             bp_counts[pair] = bp_counts.get(pair, 0) + 1
         return bp_counts
     
-    @staticmethod
-    def _regex_split(string):
-        return re.findall(re.compile(r'\s*\w+|\d+|\s*[!"#$%&\'‘’()*+,-./:;<=>?@\[\]^_`{}~]+'), string)
+    def _regex_split(self, string):
+        return re.findall(self.pattern, string)
     
     #------------------END-OF-TRAINING-METHODS---------------------
 
     #----------------------ENCODING-METHODS------------------------
 
-    def encode(self, corpus: str):
-        blocks = [list(block.encode('utf-8')) for block in self._regex_split(corpus)]
+    def encode(self, text: str):
+        blocks = [list(block.encode('utf-8')) for block in self._regex_split(text)]
         for block in blocks:
             while len(block) >= 2:
                 bp_counts = self._count_bps(block)
@@ -180,26 +182,38 @@ class Tokenizer:
             i+=1
         return block
     
-    def save_encoded_corpus(self,corpus,path,encoded_format):
+    def save_encoded_corpus(self,dataset,path,method='hf'):
         """
-        Janky way of encoding and saving a corpus (that differs from the tokenizer corpus) 
-        that supports two different output formats.
+        Encode and save a corpus (that differs from the tokenizer corpus) 
+        to np.memmap and shards.
         """
-        save_mthd = f"_save_to_{encoded_format}"
+        print('c')
         merges_list = [self.merges]
         dist.broadcast_object_list(merges_list) # Ensure all ranks know correct merges
         self.merges = merges_list[0]
-        tokens = self.encode(corpus)
-        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)` 
+        if method == 'mp':
+            with mp.Pool(4) as pool:
+                print('d')
+                tokens_iter = pool.imap(self.encode, dataset['text'], chunksize=16)
+                self._save_tokens(tokens_iter,path) 
+        else:
+            tokenize = lambda x: {'tokens':self.encode(x['text'])}
 
-    def save_encoded_tokenizer_corpus(self, path, encoded_format):
+            if self.rank!=0:
+                disable_progress_bar()
+            dataset = dataset.map(tokenize,remove_columns=dataset.column_names,num_proc=1) 
+            if self.rank!=0:
+                enable_progress_bar()
+
+            self._save_tokens(dataset['tokens'],path)
+
+    def save_encoded_tokenizer_corpus(self, path):
         """
-        Save encoded tokenizer corpus as np.memmap or shards.
+        Save encoded tokenizer corpus as np.memmap and shards.
         Must be called after `__train`.
         """
-        save_mthd = f"_save_to_{encoded_format}"
         tokens = self.flatten_blocks(self.blocks)
-        getattr(self,save_mthd)(tokens,path) # same as `self.save_mthd(path)`
+        self._save_tokens(tokens,path)
 
     @staticmethod
     def flatten_blocks(blocks: List[List[int]]) -> List[int]:
@@ -235,99 +249,85 @@ class Tokenizer:
 
     #------------------END-OF-DECODING-METHODS--------------------
 
-    #----------------------SAVING-METHODS-------------------------
+    #-------------------SAVING/LOADING-METHODS--------------------
 
-    def _save_to_shards(self,tokens,path):
-        """
-        Saves the encoded opera on all processes to shards of `shard_size` tokens.
-        The last shard will have <= `shard_size` tokens.
-
-        Given that all shards have a fixed number of tokens, and each rank will end up
-        with a different number of tokens, each rank distributes their tokens as follows:
-        - Fill up as many shards as possible with the tokens on that rank
-        - Partially fill a shard with the remaining tokens and leave a pointer where these tokens get to
-        - Pass the partially full shard, the pointer and the shard_idx to the next rank
-        This process continues on all ranks and then rank 0 will put all remaining tokens into a final partially full shard.           
-        """
-
-        shard_size = int(1e8) #TODO make this flexible
-
-        shard =  torch.zeros((shard_size,), dtype=torch.int16)
-        shard_idx = torch.tensor(0)
-        pointer = torch.tensor(0) # pointer within a shard
-
-        for rank in range(self.world_size):
-            if self.rank == rank:
-                if rank == 0:
-                    os.makedirs(path, exist_ok=True)
-                else:
-                    dist.recv(shard,rank-1)
-                    dist.recv(pointer,rank-1)
-                    dist.recv(shard_idx,rank-1)
-                ntokens_to_write = len(tokens)
-
-                while ntokens_to_write > shard_size-pointer:
-                    shard[pointer:] = torch.tensor(tokens[-ntokens_to_write:-ntokens_to_write+shard_size-pointer])
-                    np.save(os.path.join(path, f"{shard_idx:06d}"),shard.numpy().astype(np.uint16)) # torch.uint16 doesn't exist yet :(
-                    ntokens_to_write -= shard_size-pointer
-                    shard_idx += 1
-                    pointer = torch.tensor(0)
-
-                if ntokens_to_write > 0:    
-                    shard[pointer:pointer+ntokens_to_write] = torch.tensor(tokens[-ntokens_to_write:])
-                pointer += ntokens_to_write
-                dist.send(shard,(rank+1)%self.world_size)
-                dist.send(pointer,(rank+1)%self.world_size)
-                dist.send(shard_idx,(rank+1)%self.world_size)
-
-        if self.rank == 0:
-            dist.recv(shard,self.world_size-1)
-            dist.recv(pointer,self.world_size-1)
-            dist.recv(shard_idx,self.world_size-1)
-            if pointer !=0:
-                np.save(os.path.join(path, f"{shard_idx:06d}"),shard[:pointer].numpy().astype(np.uint16))
-
-    def _save_to_mmap(self,tokens,path):
-        """
-        Saves the encoded opera on all processes to one `np.memmap` in a coordinated fashion.
-        """
-        path+=".mmap"
-        all_opera_lengths = [None]*self.world_size
-
-        dist.all_gather_object(object_list=all_opera_lengths,obj=len(tokens))
-
-        if self.rank == 0:
-            print("\nCreating memory mapped array for encoded corpus storage...")
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            arr = np.memmap(path,dtype=np.uint16,mode='w+',shape=(sum(all_opera_lengths)))
-            arr.flush()
-            del arr
-            print("Memory mapped array successfully created.")
+    def _save_tokens(self, tokens_iter, path):
+        if self.rank == 0:       
+            os.makedirs(path,exist_ok=False)
 
         dist.barrier()
 
-        # Then write to that array
-        # TODO Make this faster, maybe dont use memmap?
-        # Here we write one at a time, can we write simultaneously? 
-        for rank in range(self.world_size):
-            if self.rank == rank:
-                start = sum(all_opera_lengths[:rank])
-                end = start + all_opera_lengths[rank]
-                arr = np.memmap(path,dtype=np.uint16,mode='r+')
-                arr[start:end] = np.array(tokens)
-                arr.flush()
-                del arr
-            dist.barrier()
+        shard_size = int(1e5)
+        dtype = np.uint16
+
+        shard_index = 0
+        # preallocate buffer to hold current shard
+        all_tokens_np = np.empty((shard_size,), dtype=dtype)
+        token_count = 0
+        progress_bar = None
+        
+        for tokens in tokens_iter:
+
+            # is there enough space in the current shard for the new tokens?
+            if token_count + len(tokens) < shard_size:
+                # simply append tokens to current shard
+                all_tokens_np[token_count:token_count+len(tokens)] = tokens
+                token_count += len(tokens)
+                # update progress bar
+                if progress_bar is None:
+                    progress_bar = tqdm(total=shard_size, unit="tokens", desc=f"Shard {shard_index}")
+
+                if self.rank == 0:
+                    progress_bar.update(len(tokens))
+            else:
+                # write the current shard and start a new one
+                split = "val" if shard_index == 0 else "train"
+                filename = os.path.join(path, f"fineweb_edu_{self.rank}_{split}_{shard_index:06d}")
+                # split the document into whatever fits in this shard; the remainder goes to next one
+                remainder = shard_size - token_count
+                progress_bar.update(remainder)
+                all_tokens_np[token_count:token_count+remainder] = tokens[:remainder]
+                np.save(filename, all_tokens_np)
+                shard_index += 1
+                progress_bar = None
+                # populate the next shard with the leftovers of the current doc
+                all_tokens_np[0:len(tokens)-remainder] = tokens[remainder:]
+                token_count = len(tokens)-remainder
+
+        if token_count != 0:
+            split = "val" if shard_index == 0 else "train"
+            filename = os.path.join(path, f"fineweb_edu_{self.rank}_{split}_{shard_index:06d}")
+            np.save(filename, all_tokens_np[:token_count])
+
+        dist.barrier()
+
+        if self.rank == 0:
+            # combine shards into memmaps
+            for split in ['train','val']:
+                shard_paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
+
+                total_size = 0
+                for shard in shard_paths:
+                    arr = np.load(shard, mmap_mode='r')
+                    total_size += arr.size
+                
+                memmap_filename = os.path.join(path, f"{split}.mmap")
+                combined_array = np.memmap(memmap_filename, dtype=dtype, mode='w+', shape=(total_size,))
+
+                start_idx = 0
+                for shard in shard_paths:
+                    arr = np.load(shard, mmap_mode='r')
+                    end_idx = start_idx + arr.size
+                    combined_array[start_idx:end_idx] = arr[:]
+                    start_idx = end_idx
+
+                combined_array.flush()
 
     def save_merges(self, path):
         if self.rank == 0:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'wb') as file:
                 pickle.dump(self.merges, file)
-
-    #-----------------END-OF-SAVING-METHODS-----------------------
-
-    #--------------------LOADING-METHODS--------------------------
 
     @staticmethod
     def load_merges(path):
@@ -341,4 +341,4 @@ class Tokenizer:
             file_contents = file.read()
         return file_contents
     
-    #-------------------END-OF-LOADING-METHODS---------------------
+    #-----------------END-OF-SAVING/LOADING-METHODS------------------

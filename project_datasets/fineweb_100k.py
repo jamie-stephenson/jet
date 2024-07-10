@@ -22,7 +22,7 @@ def get_dataset(path,rank,world_size):
         cache_dir=path_to_data
     )
 
-    return '\n'.join(dataset['text'])
+    return dataset
 
 def download_dataset(path,nproc):
     print("This dataset is a subset of the fineweb_edu dataset, please download that instead.")
