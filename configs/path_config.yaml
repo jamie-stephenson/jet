@@ -1,16 +1,12 @@
-# Use this file to configure the directory structure of any input and output from `train.py` and `encode.py`
-# See `path_utils.py`'s `PathFetcher` class for the implementation of these templates. 
+# Use this file to configure the directory structure of any input and output from `train.py`, `encode.py` and `download.py`
+# See `file_utils.py`'s `PathFetcher` class for the implementation of these templates. 
 # Any arg parsed by the arg parser can be use in your template configuration, as well as the current time.
-# NOTE: the paths `encoded_corpus` and `encoded_tokenizer_corpus` will be used differently depending on
-# `encoded_format`:
-# - shards: path will be used as a directory to save shards in.
-# - mmap: `.mmap` appended to path and it will be used as path to mmap file.
 
 model: './runs/{name}_{time}/model.pt'
 config: './runs/{name}_{time}/config.yaml'
 corpus: './data/{corpus}/raw/'
 tokenizer_corpus: './data/{tokenizer_corpus}/raw/'
-encoded_corpus: './data/{corpus}/{encoded_format}/{corpus}_{tokenizer_corpus}_{vocab_size}'
-encoded_tokenizer_corpus: './data/{tokenizer_corpus}/{encoded_format}/{tokenizer_corpus}_{tokenizer_corpus}_{vocab_size}'
+encoded_corpus: './data/{corpus}/{corpus}_{tokenizer_corpus}_{vocab_size}'
+encoded_tokenizer_corpus: './data/{tokenizer_corpus}/{tokenizer_corpus}_{tokenizer_corpus}_{vocab_size}'
 tokenizer: './tokenizers/{tokenizer_corpus}_{vocab_size}.pkl'
 wandb: '{name}_{time}'

@@ -15,6 +15,7 @@ source ~/envs/jet/bin/activate
 master_host=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 master_addr=$(getent hosts $master_host | awk '{print $1}')
 
+export TQDM_MININTERVAL=10
 export HF_DATASETS_OFFLINE=1 # To stop unnecessary API calls
 export OMP_NUM_THREADS=1
 # Run the PyTorch distributed script

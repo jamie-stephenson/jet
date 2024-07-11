@@ -1,4 +1,3 @@
-corpus: fineweb_100k
-encoded_format: mmap
+corpus: fineweb_edu
 tokenizer_corpus: fineweb_100k
 vocab_size: 8192
