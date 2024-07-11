@@ -9,7 +9,7 @@ import pickle
 from typing import Tuple, List
 from time import time
 import wandb
-from tqdm import tqdm
+from tqdm.auto import tqdm
     
 class Tokenizer:
     """
@@ -182,7 +182,7 @@ class Tokenizer:
             i+=1
         return block
     
-    def save_encoded_corpus(self,dataset,path,method='hf'):
+    def save_encoded_corpus(self,dataset,path):
         """
         Encode and save a corpus (that differs from the tokenizer corpus) 
         to np.memmap and shards.
@@ -190,20 +190,16 @@ class Tokenizer:
         merges_list = [self.merges]
         dist.broadcast_object_list(merges_list) # Ensure all ranks know correct merges
         self.merges = merges_list[0]
-        if method == 'mp':
-            with mp.Pool(4) as pool:
-                tokens_iter = pool.imap(self.encode, dataset['text'], chunksize=16)
-                self._save_tokens(tokens_iter,path) 
-        else:
-            tokenize = lambda x: {'tokens':self.encode(x['text'])}
 
-            if self.rank!=0:
-                disable_progress_bar()
-            dataset = dataset.map(tokenize,remove_columns=dataset.column_names,num_proc=1) 
-            if self.rank!=0:
-                enable_progress_bar()
+        if self.rank==0:
+            t0 = time()
 
-            self._save_tokens(dataset['tokens'],path)
+        with mp.Pool(os.cpu_count()) as pool:
+            tokens_iter = pool.imap(self.encode, dataset['text'], chunksize=16)
+            self._save_tokens(tokens_iter,path) 
+
+        if self.rank==0:
+            print(f"Encoding and saving took {time()-t0:.2f} seconds.")
 
     def save_encoded_tokenizer_corpus(self, path):
         """
@@ -250,12 +246,12 @@ class Tokenizer:
     #-------------------SAVING/LOADING-METHODS--------------------
 
     def _save_tokens(self, tokens_iter, path):
-        if self.rank == 0:       
+        if self.rank == 0:      
             os.makedirs(path,exist_ok=False)
 
         dist.barrier()
 
-        shard_size = int(1e5)
+        shard_size = int(1e8) #TODO automatically adapt this to dataset
         dtype = np.uint16
 
         shard_index = 0
