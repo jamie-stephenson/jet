@@ -1,11 +1,12 @@
-from torch.utils.data import DataLoader, Dataset, Sampler
+from torch.utils.data import DataLoader, Dataset, IterableDataset, Sampler
 import torch 
 import numpy as np
 import os
+import random
 
 class ArrayDataset(Dataset):
     """
-    Dataset to sample blocks of tokens of size `block_size` from an array of tokens.
+    Dataset to sample blocks of tokens of size `seq_len` from an array of tokens.
     "Array" can be anything indexed using slice notation ('arr[start:end]') and that 
     `torch.tensor` accepts as valid 'data', e.g. list, np.array, np.memmap.
     """
@@ -22,36 +23,9 @@ class ArrayDataset(Dataset):
         targets = torch.tensor(self.data[idx+1:idx+self.seq_len+1],dtype=torch.long)  
         return sample,targets
     
-class ShardedDataset(Dataset):
-    """
-    Class to sample from a dataset that is split into numpy array shards and stored at `path`.
-    Each shard is assumed to have equal `shard_size` except the last shard in the dir, which has size <= `shard_size`.
-    """
-    def __init__(self, path, seq_len, split):
-        self.shards = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard] 
-        self.shard_size = np.load(self.shards[0], mmap_mode='r').shape[0]
-        self.shard_remainder = np.load(self.shards[-1], mmap_mode='r').shape[0]
-        self.nshards = len(self.shards) 
-        self.seq_len = seq_len
-        
-    def __len__(self):
-        return self.shard_size*(self.nshards-1)+self.shard_remainder  
-    
-    def __getitem__(self, idx): #TODO Optimise
-        shard_idx = idx//self.shard_size
-        start_idx = idx%self.shard_size
-        # Check if sample will fit within shard. If not go to next shard. TODO find better alternative to this
-        if start_idx+self.seq_len+1>self.shard_size:
-            shard_idx += 1
-            start_idx = 0
-        np_tokens = np.load(self.shards[shard_idx], mmap_mode='r').astype(np.int32)[start_idx:start_idx+self.seq_len+1]
-        sample = torch.tensor(np_tokens[:-1],dtype=torch.long)
-        targets = torch.tensor(np_tokens[1:],dtype=torch.long)  
-        return sample,targets
-    
 class CustomBatchSampler(Sampler):
     """
-    Samples `batch_size` valid indices randomly without replacement.
+    Samples `batch_size` valid indices randomly without replacement from an ArrayDataset.
     The valid indices are multiples of `seq_len-overlap`. 
     """
     def __init__(self, split_length, rank, world_size, args):
@@ -72,6 +46,43 @@ class CustomBatchSampler(Sampler):
     
     def __len__(self):
         return self.length #I have no idea if this is right, changing it seems to do nothing.
+    
+class ShardedDataset(IterableDataset):
+    """
+    Dataset to sample blocks of tokens of size `seq_len` from a directory containing numpy shards.
+    Each epoch all shards will be shuffled and shared across all available ranks.
+    Each rank will then shuffle and then iterate over each of its shards.
+    """
+    def __init__(self, shard_paths, seq_len, overlap, rank, world_size):
+        self.seq_len = seq_len
+        self.idx_step = seq_len - overlap
+        self.rank = rank
+        self.world_size = world_size 
+        self.shard_paths = shard_paths
+        self.generator = torch.Generator()
+        self.generator.manual_seed(torch.initial_seed()+rank)
+        torch.utils.data.get_worker_info().id
+        
+    def _load_shard(self, shard_path):
+        """Generator to yield sequences of tokens from a given shard"""
+        data = np.load(shard_path, allow_pickle=True).astype(np.int32)
+        torch_data = torch.from_numpy(data)
+        ids = torch.arange(0,len(torch_data),self.idx_step)
+        shuffled_ids = ids[torch.randperm(len(ids),generator=self.generator)] 
+        # Because we set this seed differently on all ranks this shuffle is different on all ranks 
+        for idx in shuffled_ids:
+            sample = torch_data[idx:idx+self.seq_len]
+            targets = torch_data[idx+1:idx+self.seq_len+1]
+            yield sample, targets
+
+    def __iter__(self):
+        random.shuffle(self.shard_paths) # Because we set random.seed this shuffle is the same on all ranks (as desired)
+        shard_paths = self.shard_paths[self.rank::self.world_size]
+        for shard_path in shard_paths:
+            yield from self._load_shard(shard_path)
+
+def sharded_worker_init():
+    pass
 
 def get_dataloader(path,args,split):
     dtype=np.uint16      
@@ -79,10 +90,12 @@ def get_dataloader(path,args,split):
         path = os.path.join(path,f"{split}.mmap")
         data = np.memmap(path,dtype,mode='r+')
         dataset = ArrayDataset(data,args.seq_len)
+        sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
+        dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
     elif args.encoded_format == 'shards':
-        dataset = ShardedDataset(path,args.seq_len,split)
-
-    sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
-    dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
+        paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
+        dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
+        dataloader = DataLoader(dataset=dataset, num_workers=args.num_workers, worker_init_fn=)
+    
     return dataloader
 

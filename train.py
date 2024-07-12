@@ -11,6 +11,7 @@ import os
 import yaml
 import wandb
 import importlib
+import random
 
 def main(args):
 
@@ -248,6 +249,12 @@ def get_parser():
         help="Temperature to use for sample output generation during training."
     )
 
+    parser.add_argument(
+        "--seed",
+        default=90,
+        help="Seed for random output during training."
+    )
+
     return parser
 
 if __name__ == '__main__':
@@ -256,7 +263,8 @@ if __name__ == '__main__':
     if args.config_file:
         args = args_from_config_file(args)
 
-    torch.manual_seed(90)
+    torch.manual_seed(args.seed)
+    random.seed(args.seed)
 
     if 'cuda' in args.device:
         args.device_id = [int(os.getenv('LOCAL_RANK','0'))]

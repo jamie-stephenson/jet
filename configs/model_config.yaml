@@ -1,7 +1,7 @@
 name: jet
 batch_size: 16
 grad_accumulation_steps: 1
-encoded_format: mmap
+encoded_format: shards
 corpus: ipl_commentary
 tokenizer_corpus: ipl_commentary
 device: cpu
@@ -18,4 +18,6 @@ overlap: 4
 vocab_size: 2048
 weight_decay: 0.0001
 eff_batch_per_log: 100
+seed: 90
+num_workers: 2
 
