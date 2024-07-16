@@ -11,7 +11,6 @@ import os
 import yaml
 import wandb
 import importlib
-import random
 
 def main(args):
 
@@ -264,7 +263,6 @@ if __name__ == '__main__':
         args = args_from_config_file(args)
 
     torch.manual_seed(args.seed)
-    random.seed(args.seed)
 
     if 'cuda' in args.device:
         args.device_id = [int(os.getenv('LOCAL_RANK','0'))]

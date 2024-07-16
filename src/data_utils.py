@@ -2,7 +2,6 @@ from torch.utils.data import DataLoader, Dataset, IterableDataset, Sampler
 import torch 
 import numpy as np
 import os
-import random
 
 class ArrayDataset(Dataset):
     """
@@ -59,34 +58,40 @@ class ShardedDataset(IterableDataset):
         self.rank = rank
         self.world_size = world_size 
         self.shard_paths = shard_paths
-        self.generator = torch.Generator()
-        self.generator.manual_seed(torch.initial_seed()+rank)
-        torch.utils.data.get_worker_info().id
+        self.global_seed = torch.initial_seed() 
+        self.worker_seed = torch.initial_seed()
         
     def _load_shard(self, shard_path):
         """Generator to yield sequences of tokens from a given shard"""
         data = np.load(shard_path, allow_pickle=True).astype(np.int32)
         torch_data = torch.from_numpy(data)
-        ids = torch.arange(0,len(torch_data),self.idx_step)
-        shuffled_ids = ids[torch.randperm(len(ids),generator=self.generator)] 
-        # Because we set this seed differently on all ranks this shuffle is different on all ranks 
+        max_idx = len(torch_data) - self.seq_len - 1
+        ids = torch.arange(0,max_idx,self.idx_step)
+        print(torch.randperm(10))
+        shuffled_ids = ids[torch.randperm(len(ids))] # This shuffle is different on all ranks 
         for idx in shuffled_ids:
             sample = torch_data[idx:idx+self.seq_len]
             targets = torch_data[idx+1:idx+self.seq_len+1]
             yield sample, targets
 
     def __iter__(self):
-        random.shuffle(self.shard_paths) # Because we set random.seed this shuffle is the same on all ranks (as desired)
+
+        torch.manual_seed(self.global_seed)
+        self.shard_paths = [self.shard_paths[i] for i in torch.randperm(len(self.shard_paths))]  # This shuffle is the same on all ranks (as desired)
+        torch.manual_seed(self.worker_seed)
+
         shard_paths = self.shard_paths[self.rank::self.world_size]
         for shard_path in shard_paths:
             yield from self._load_shard(shard_path)
 
-def sharded_worker_init():
+def sharded_init_fn(worker_id): 
+    dataset = torch.utils.data.get_worker_info().dataset
+    dataset.worker_seed += worker_id
     pass
 
-def get_dataloader(path,args,split):
-    dtype=np.uint16      
+def get_dataloader(path,split,args):     
     if args.encoded_format == 'mmap':
+        dtype=np.uint16 
         path = os.path.join(path,f"{split}.mmap")
         data = np.memmap(path,dtype,mode='r+')
         dataset = ArrayDataset(data,args.seq_len)
@@ -95,7 +100,7 @@ def get_dataloader(path,args,split):
     elif args.encoded_format == 'shards':
         paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
         dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
-        dataloader = DataLoader(dataset=dataset, num_workers=args.num_workers, worker_init_fn=)
+        dataloader = DataLoader(dataset=dataset, batch_size=args.batch_size, num_workers=args.num_workers, worker_init_fn=sharded_init_fn)
     
     return dataloader
 
