@@ -277,7 +277,8 @@ class Tokenizer:
             else:
                 # write the current shard and start a new one
                 split = "val" if shard_index == 0 else "train"
-                filename = os.path.join(path, f"fineweb_edu_{self.rank}_{split}_{shard_index:06d}")
+                filename = os.path.join(path, f"{self.rank}_{split}_{shard_index:06d}")
+                
                 # split the document into whatever fits in this shard; the remainder goes to next one
                 remainder = shard_size - token_count
                 if self.rank == 0:
@@ -285,15 +286,20 @@ class Tokenizer:
                 all_tokens_np[token_count:token_count+remainder] = tokens[:remainder]
                 np.save(filename, all_tokens_np)
                 shard_index += 1
-                if self.rank == 0:
-                    progress_bar = None
+
                 # populate the next shard with the leftovers of the current doc
                 all_tokens_np[0:len(tokens)-remainder] = tokens[remainder:]
                 token_count = len(tokens)-remainder
 
+                if self.rank == 0:
+                    progress_bar = tqdm(total=shard_size, unit="tokens", desc=f"Shard {shard_index}")
+                    progress_bar.update(token_count)
+
+
+
         if token_count != 0:
             split = "val" if shard_index == 0 else "train"
-            filename = os.path.join(path, f"fineweb_edu_{self.rank}_{split}_{shard_index:06d}")
+            filename = os.path.join(path, f"{self.rank}_{split}_{shard_index:06d}")
             np.save(filename, all_tokens_np[:token_count])
 
         dist.barrier()
