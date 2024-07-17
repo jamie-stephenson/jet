@@ -22,8 +22,8 @@ def main(args):
 
     tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer) # Only used for sample output generation during training
     model = get_model(args)
-    train_dataloader = get_dataloader(paths.encoded_corpus, args, 'train')
-    eval_dataloader = get_dataloader(paths.encoded_corpus, args, 'val')
+    train_dataloader = get_dataloader(paths.encoded_corpus, 'train', args)
+    eval_dataloader = get_dataloader(paths.encoded_corpus, 'val', args)
     optimizer = get_optimizer(args.optimizer, model, args)
     lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader), args)
     
@@ -232,7 +232,7 @@ def get_parser():
 
     parser.add_argument(
         "--log_per_val",
-        default=4,
+        default=10,
         help="Number of logs per validation run."
     )
 
