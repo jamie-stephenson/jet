@@ -74,19 +74,6 @@ class ShardedDataset(IterableDataset):
         self.worker_id = 0
         self.num_workers = 1
         self.rank_rng = None
-        
-    def _load_shard(self, shard_path):
-        """Generator to yield sequences of tokens from a given shard"""
-        data = np.load(shard_path, allow_pickle=True).astype(np.int32)
-        torch_data = torch.from_numpy(data)
-        max_idx = len(torch_data) - self.seq_len - 1
-        ids = torch.arange(0,max_idx,self.idx_step)
-        # This shuffle is different on all ranks but the same for all workers on a given rank:
-        shuffled_ids = ids[torch.randperm(len(ids),generator=self.rank_rng)[self.worker_id::self.num_workers]] 
-        for idx in shuffled_ids:
-            sample = torch_data[idx:idx+self.seq_len]
-            targets = torch_data[idx+1:idx+self.seq_len+1]
-            yield sample, targets
 
     def __iter__(self):
         # This shuffle is the same on all ranks:
@@ -97,6 +84,25 @@ class ShardedDataset(IterableDataset):
         for shard_path in shard_paths:
             print(self.worker_id,shard_path)
             yield from self._load_shard(shard_path)
+
+    def _load_shard(self, shard_path):
+        """Generator to yield sequences of tokens from a given shard"""
+        data = np.load(shard_path, allow_pickle=True).astype(np.int64)
+        torch_data = torch.from_numpy(data)
+        max_idx = len(torch_data) - self.seq_len - 1
+        ids = torch.arange(0,max_idx,self.idx_step)
+        # This shuffle is different on all ranks but the same for all workers on a given rank:
+        shuffled_ids = ids[torch.randperm(len(ids),generator=self.rank_rng)[self.worker_id::self.num_workers]] 
+        for idx in shuffled_ids:
+            sample = torch_data[idx:idx+self.seq_len]
+            targets = torch_data[idx+1:idx+self.seq_len+1]
+            yield sample, targets
+
+    def __len__(self):
+        """Rough estimate of dataset length (currently only used for input to OneCycleLR)"""
+        shard_size = np.load(self.shard_paths[0],mmap_mode='r').size
+        length = (self.nshards_per_epoch//self.world_size)*(shard_size/self.idx_step)
+        return int(length)
 
 def seed_worker(worker_id):
     """
@@ -124,7 +130,7 @@ def get_dataloader(path,split,args):
         sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
         dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
     elif args.encoded_format == 'shards':
-        paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
+        paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard]
         dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
         dataloader = DataLoader(
                         dataset=dataset, 
