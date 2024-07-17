@@ -5,6 +5,7 @@ import time
 from tqdm import tqdm
 import wandb
 import os
+from contextlib import nullcontext
 
 def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
@@ -12,7 +13,9 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     start_time = time.time()
 
-    with model.join():
+    dist_cm = model.join() if args.world_size > 1 else nullcontext()
+
+    with dist_cm:
         for epoch in range(args.epochs):
         
             if args.rank == 0:
@@ -90,8 +93,8 @@ def evaluate(model, dataloader, args):
     model_mode = model.training
     model.eval()
 
-    loss_sum = 0
-    nsamples = 0
+    loss_sum = torch.tensor(0,dtype=torch.float).to(args.device)
+    nsamples = torch.tensor(0).to(args.device)
 
     with torch.no_grad():
         for x, y in dataloader:
