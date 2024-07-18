@@ -15,9 +15,11 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     dist_cm = model.join() if args.world_size > 1 else nullcontext()
 
+    eff_batch = 0
+
     with dist_cm:
         for epoch in range(args.epochs):
-        
+
             if args.rank == 0:
                 if args.no_wandb:
                     print("-"*40)
@@ -47,7 +49,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
             
                 if i % (args.eff_batch_per_log*args.grad_accumulation_steps) == 0 and args.rank == 0:
                     current_time = int(time.time()) - int(start_time)
-                    eff_batch = i/args.grad_accumulation_steps
+                    eff_batch += args.eff_batch_per_log
                     if args.no_wandb:
                         print("-"*40)
                         print(f"Effective Batch {eff_batch:.0f}")

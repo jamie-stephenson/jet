@@ -82,7 +82,6 @@ class ShardedDataset(IterableDataset):
 
         shard_paths = shard_paths[self.rank::self.world_size]
         for shard_path in shard_paths:
-            print(self.worker_id,shard_path)
             yield from self._load_shard(shard_path)
 
     def _load_shard(self, shard_path):
