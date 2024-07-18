@@ -5,40 +5,36 @@ from project_datasets import get_dataset
 import torch.distributed as dist
 import argparse
 import os
+import wandb
 
 def main(args):
-
     rank, world_size = dist.get_rank(), dist.get_world_size()
 
     paths = PathFetcher(args)
-    assert os.path.exists(paths.tokenizer),(
-        "No tokenizer found at {}. Please train this tokenizer first before attempting to use it."
+
+    assert not os.path.exists(paths.tokenizer),(
+        "A tokenizer already exists at {}. Have you trained this tokenizer already?"
         .format(paths.tokenizer)
     )
 
-    assert not os.path.exists(paths.encoded_corpus),(
-        "A directory named {} already exists. Have you already used {} to encode {}?."
-        .format(paths.encoded_corpus,paths.tokenizer,args.corpus)
-    )
+    if not args.no_wandb and rank == 0:
+        wandb.init(project='jet',name=f"tokenizer_ws{world_size}_vs{args.vocab_size}",config=args)
     
-    corpus = get_dataset(args.corpus,paths.corpus,rank,world_size)
-    tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer,rank,world_size)
-    tokenizer.save_encoded_corpus(corpus,paths.encoded_corpus)
+    corpus = get_dataset(args.tokenizer_corpus,paths.tokenizer_corpus,rank,world_size)
+
+    tokenizer = Tokenizer.from_corpus(corpus,args.vocab_size,rank,world_size)
+    tokenizer.save_encoded_tokenizer_corpus(paths.encoded_tokenizer_corpus)
+    tokenizer.save_merges(paths.tokenizer)
 
 if __name__ == '__main__':
     """Trains and saves new tokenizer based on command line input."""
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--corpus",
-        type=str,
-        help="The corpus to be encoded."
-    )
-
-    parser.add_argument(
         "--tokenizer_corpus",
+        default=None,
         type=str,
-        help='If specified, the corpus will be encoded using a pretrained tokenizer trained on `tokenzier_corpus`.'
+        help='The corpus to train the tokenizer on.'
     )
 
     parser.add_argument(
@@ -63,7 +59,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.config_file:
-        args = args_from_config_file(args) 
+        args = args_from_config_file(args)
 
     setup('gloo')   
     main(args)
