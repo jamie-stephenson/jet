@@ -65,7 +65,6 @@ echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
 
 #----SLURM LOGGING----
 mkdir -p $mount_dir/jet/slurmlogs/
-sudo sed -i "s@#SBATCH --output=@#SBATCH --output=$mount_dir/jet/slurmlogs/%j.log@" $mount_dir/jet/slurm_torchrun.sh
 #---------------------
 
 #---UPDATE HOSTNAME--- 
