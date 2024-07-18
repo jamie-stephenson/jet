@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=
 #SBATCH --time=
-#SBATCH --output=/slurmlogs/%j_encode.log
+#SBATCH --output=./slurmlogs/%j_encode.log
 
 # Activate the virtual environment
 source ~/envs/jet/bin/activate

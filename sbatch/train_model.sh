@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=
 #SBATCH --gpus-per-task=
 #SBATCH --time=
-#SBATCH --output=/slurmlogs/%j_train_model.log
+#SBATCH --output=./slurmlogs/%j_train_model.log
 
 # Activate the virtual environment
 source ~/envs/jet/bin/activate
