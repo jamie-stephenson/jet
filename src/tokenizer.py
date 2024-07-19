@@ -207,8 +207,7 @@ class Tokenizer:
         Save encoded tokenizer corpus as np.memmap and shards.
         Must be called after `__train`.
         """
-        tokens = self.flatten_blocks(self.blocks)
-        self._save_tokens(tokens,path)
+        self._save_tokens(self.blocks,path)
 
     @staticmethod
     def flatten_blocks(blocks: List[List[int]]) -> List[int]:
@@ -247,6 +246,10 @@ class Tokenizer:
     #-------------------SAVING/LOADING-METHODS--------------------
 
     def _save_tokens(self, tokens_iter, path):
+        """
+        Save tokens from an iterable to shards and mmap. 
+        `tokens_iter` must be an iterable that yields lists (or numpy arrays) of tokens
+        """
         if self.rank == 0:      
             os.makedirs(path,exist_ok=False)
 

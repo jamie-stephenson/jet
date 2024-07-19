@@ -23,8 +23,8 @@ def main(args):
     corpus = get_dataset(args.tokenizer_corpus,paths.tokenizer_corpus,rank,world_size)
 
     tokenizer = Tokenizer.from_corpus(corpus,args.vocab_size,rank,world_size)
-    tokenizer.save_encoded_tokenizer_corpus(paths.encoded_tokenizer_corpus)
     tokenizer.save_merges(paths.tokenizer)
+    tokenizer.save_encoded_tokenizer_corpus(paths.encoded_tokenizer_corpus)
 
 if __name__ == '__main__':
     """Trains and saves new tokenizer based on command line input."""
