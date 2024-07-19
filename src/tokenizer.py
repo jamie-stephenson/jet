@@ -15,7 +15,7 @@ class Tokenizer:
     """
     Class for training and using tokenizers that is (almost) distribution agnositic.
     """
-    def __init__(self, merges, rank, world_size, pattern=r'\s*\w+|\d+|\s*[!"#$%&\'‘’()*+,-./:;<=>?@\[\]^_`{}~]+') -> None:
+    def __init__(self, merges, rank, world_size, pattern=r'\s?\w+|\s?[^a-zA-Z0-9\s]+|\s+(?=\s)') -> None:
         self.rank = rank
         self.world_size = world_size
         self.merges = merges
