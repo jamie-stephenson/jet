@@ -1,6 +1,6 @@
+from src.file_utils import get_size
 import os
 import torch.distributed as dist
-from datasets.utils.logging import disable_progress_bar, enable_progress_bar
 import multiprocessing as mp
 import numpy as np
 import re
@@ -10,7 +10,8 @@ from typing import Tuple, List
 from time import time
 import wandb
 from tqdm.auto import tqdm
-    
+import math
+
 class Tokenizer:
     """
     Class for training and using tokenizers that is (almost) distribution agnositic.
@@ -255,7 +256,17 @@ class Tokenizer:
 
         dist.barrier()
 
-        shard_size = int(1e8) #TODO automatically adapt this to dataset
+        #TODO find better way to set shard_size
+        dataset_size = get_size(os.path.join(os.path.dirname(path),'raw'))
+        rough_shard_size = dataset_size/500
+        order_of_magnitude = int(math.log10(abs(rough_shard_size)))
+        factor = 10 ** order_of_magnitude
+        shard_size = round(rough_shard_size / factor) * factor
+
+        if self.rank==0:
+            print("Dataset has size {:.2f} GB on disk. It will be encoded and saved in shards of {} tokens."
+                  .format(dataset_size/(2**30),shard_size))
+
         dtype = np.uint16
 
         shard_index = 0

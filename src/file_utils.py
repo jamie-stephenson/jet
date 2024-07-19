@@ -1,5 +1,7 @@
 import yaml
 from datetime import datetime
+import os
+import math
 
 class PathFetcher:
     """
@@ -31,6 +33,19 @@ def args_from_config_file(args):
         setattr(args, key, value)
     
     return args
+
+def get_size(start_path = '.'):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    return total_size
+    
+
     
 
 
