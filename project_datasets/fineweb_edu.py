@@ -4,6 +4,7 @@ import os
 
 #-----CONFIG------
 ndocs = 9672101 # All documents 
+shard_size = int(1e8)
 #-----------------
 
 def get_dataset(path,rank,world_size):
@@ -20,6 +21,8 @@ def get_dataset(path,rank,world_size):
         split=f'train[{start}:{end}]', 
         cache_dir=path
     )
+
+    dataset.shard_size = shard_size
 
     return dataset
 

@@ -4,6 +4,7 @@ import os
 
 #-----CONFIG------
 ndocs = int(1e5) # We use 100,000 documents e.g. for training a tokenizer 
+shard_size = int(5e6)
 #-----------------
 
 def get_dataset(path,rank,world_size):
@@ -21,6 +22,8 @@ def get_dataset(path,rank,world_size):
         split=f'train[{start}:{end}]', 
         cache_dir=path_to_data
     )
+    
+    dataset.shard_size = shard_size
 
     return dataset
 

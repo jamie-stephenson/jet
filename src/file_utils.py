@@ -34,6 +34,7 @@ def args_from_config_file(args):
     
     return args
 
+# Not currently used 
 def get_size(start_path = '.'):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):

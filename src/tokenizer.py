@@ -1,5 +1,5 @@
-from src.file_utils import get_size
 import os
+import torch
 import torch.distributed as dist
 import multiprocessing as mp
 import numpy as np
@@ -10,7 +10,6 @@ from typing import Tuple, List
 from time import time
 import wandb
 from tqdm.auto import tqdm
-import math
 
 class Tokenizer:
     """
@@ -33,7 +32,7 @@ class Tokenizer:
         should be the chunk of the dataset that the current rank will handle.
         """
         tokenizer = cls({}, rank, world_size)
-        tokenizer.corpus = '\n'.join(dataset['text'])
+        tokenizer.corpus = dataset
         tokenizer.__train(vocab_size)
 
         return tokenizer
@@ -45,7 +44,7 @@ class Tokenizer:
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
 
-        blocks = self._regex_split(self.corpus)
+        blocks = self._regex_split('\n'.join(self.corpus['text']))
         self.blocks = [list(block.encode('utf-8')) for block in blocks]
 
         print(f"Rank {self.rank} ready to train.")
@@ -256,18 +255,8 @@ class Tokenizer:
 
         dist.barrier()
 
-        #TODO find better way to set shard_size
-        dataset_size = get_size(os.path.join(os.path.dirname(path),'raw'))
-        rough_shard_size = dataset_size/500
-        order_of_magnitude = int(math.log10(abs(rough_shard_size)))
-        factor = 10 ** order_of_magnitude
-        shard_size = round(rough_shard_size / factor) * factor
-
-        if self.rank==0:
-            print("Dataset has size {:.2f} GB on disk. It will be encoded and saved in shards of {} tokens."
-                  .format(dataset_size/(2**30),shard_size))
-
         dtype = np.uint16
+        shard_size = self.corpus.shard_size
 
         shard_index = 0
         # preallocate buffer to hold current shard
