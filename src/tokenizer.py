@@ -197,7 +197,7 @@ class Tokenizer:
 
         with mp.Pool(os.cpu_count()) as pool:
             tokens_iter = pool.imap(self.encode, dataset['text'], chunksize=16)
-            self._save_tokens(tokens_iter,path) 
+            self._save_tokens(tokens_iter,path,dataset.shard_size) 
 
         if self.rank==0:
             print(f"Encoding and saving took {time()-t0:.2f} seconds.")
@@ -207,7 +207,7 @@ class Tokenizer:
         Save encoded tokenizer corpus as np.memmap and shards.
         Must be called after `__train`.
         """
-        self._save_tokens(self.blocks,path)
+        self._save_tokens(self.blocks,path,self.corpus.shard_size)
 
     @staticmethod
     def flatten_blocks(blocks: List[List[int]]) -> List[int]:
@@ -245,36 +245,34 @@ class Tokenizer:
 
     #-------------------SAVING/LOADING-METHODS--------------------
 
-    def _save_tokens(self, tokens_iter, path):
+    def _save_tokens(self, tokens_iter, path, shard_size):
         """
         Save tokens from an iterable to shards and mmap. 
         `tokens_iter` must be an iterable that yields lists (or numpy arrays) of tokens
         """
-        if self.rank == 0:      
-            os.makedirs(path,exist_ok=False)
 
+        os.makedirs(path, exist_ok=True)
+        
         dist.barrier()
-
+        
         dtype = np.uint16
-        shard_size = self.corpus.shard_size
 
         shard_index = 0
-        # preallocate buffer to hold current shard
+        # Preallocate buffer to hold current shard
         all_tokens_np = np.empty((shard_size,), dtype=dtype)
         token_count = 0
         if self.rank == 0:
             progress_bar = tqdm(total=shard_size, unit="tokens", desc=f"Shard {shard_index}")
- 
-        for tokens in tokens_iter:
 
+        for tokens in tokens_iter:
             while token_count + len(tokens) >= shard_size:
-                # write the current shard and start a new one
+                # Write the current shard and start a new one
                 split = "val" if shard_index == 0 else "train"
                 filename = os.path.join(path, f"{self.rank}_{split}_{shard_index:06d}")
                 
-                # split the document into whatever fits in this shard; the remainder goes to next one
+                # Split the document into whatever fits in this shard; the remainder goes to next one
                 remainder = shard_size - token_count
-                all_tokens_np[token_count:token_count+remainder] = tokens[:remainder]
+                all_tokens_np[token_count:token_count + remainder] = tokens[:remainder]
 
                 if self.rank == 0:
                     progress_bar.update(remainder)
