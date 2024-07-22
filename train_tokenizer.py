@@ -32,7 +32,6 @@ if __name__ == '__main__':
 
     parser.add_argument(
         "--tokenizer_corpus",
-        default=None,
         type=str,
         help='The corpus to train the tokenizer on.'
     )

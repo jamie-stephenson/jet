@@ -47,13 +47,6 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        "--no-wandb",
-        "--no_wandb",
-        action="store_true",
-        help="If set, wandb logging is disabled."
-    )
-
-    parser.add_argument(
         "--config_file",
         default=None,
         type=str,
