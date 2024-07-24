@@ -36,10 +36,11 @@ for node in "${nodes[@]}"; do
     name="${node}[name]"
     addr="${node}[addr]"
     cpus="${node}[cpus]"
-    slurm_nodes+="NodeName=${!name} NodeAddr=${!addr} CPUs=${!cpus} State=UNKNOWN\n"
+    gpus="${node}[gpus]"
+    slurm_nodes+="NodeName=${!name} NodeAddr=${!addr} CPUs=${!cpus} Gres=gpu:${!gpus} State=UNKNOWN\n"
 done
 
-sudo sed -i "s/NodeName= NodeAddr= CPUs= State=UNKNOWN/$slurm_nodes/" ${slurm_conf_path}slurm.conf
+sudo sed -i "s/NodeName= NodeAddr= CPUs= Gres= State=UNKNOWN/$slurm_nodes/" ${slurm_conf_path}slurm.conf
 sudo sed -i "s/ClusterName=/ClusterName=$cluster_name/" ${slurm_conf_path}slurm.conf 
 
 master_addr="${node00[addr]}"
