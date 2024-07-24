@@ -15,6 +15,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     dist_cm = model.join() if args.world_size > 1 else nullcontext()
 
+    batch = 0
     eff_batch = 0
 
     with dist_cm:
@@ -27,12 +28,14 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                 else:
                     wandb.log({"Epoch": epoch})
 
-            for i,(x, y) in enumerate(train_dataloader):
+            for x, y in train_dataloader:
+
+                batch += 1
             
                 x, y = x.to(args.device), y.to(args.device)
 
                 if args.world_size > 1:
-                    model.require_backward_grad_sync = ((i+1)%args.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
+                    model.require_backward_grad_sync = (batch%args.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
 
                 logits = model(x)
 
@@ -40,16 +43,17 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                 
                 loss.backward()
 
-                if (i+1)%args.grad_accumulation_steps == 0: # Only take step when gradients have accumulated
+                if batch%args.grad_accumulation_steps == 0: # Only take step when gradients have accumulated
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad()
 
+                    eff_batch += 1 
+
                 # -----------VALIDATION-&-LOGGING--------------   
             
-                if i % (args.eff_batch_per_log*args.grad_accumulation_steps) == 0 and args.rank == 0:
-                    current_time = int(time.time()) - int(start_time)
-                    eff_batch += args.eff_batch_per_log
+                if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0:
+                    current_time = int(time.time()) - int(start_time) 
                     if args.no_wandb:
                         print("-"*40)
                         print(f"Effective Batch {eff_batch:.0f}")
@@ -65,7 +69,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                         })
                     
 
-                if i % (args.log_per_val*args.eff_batch_per_log*args.grad_accumulation_steps) == 0:  
+                if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
                     val_loss = evaluate(model, eval_dataloader, args)
                 
                     if args.rank == 0:
