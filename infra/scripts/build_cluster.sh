@@ -46,7 +46,7 @@ for node in "${nodes[@]}"; do
             gres_ids="[0-$(($gpus - 1))]\n"
         fi
         gres_nodes+=$gres_ids
-            
+    fi        
 done
 
 sudo sed -i "s/NodeName= NodeAddr= CPUs= Gres= State=UNKNOWN/$slurm_nodes/" ${slurm_conf_path}slurm.conf
