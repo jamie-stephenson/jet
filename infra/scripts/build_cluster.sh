@@ -32,12 +32,21 @@ git clone https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
 
 #-EDIT SLURM CONFIGS--
 slurm_nodes=""
+gres_nodes=""
 for node in "${nodes[@]}"; do
     name="${node}[name]"
     addr="${node}[addr]"
     cpus="${node}[cpus]"
     gpus="${node}[gpus]"
     slurm_nodes+="NodeName=${!name} NodeAddr=${!addr} CPUs=${!cpus} Gres=gpu:${!gpus} State=UNKNOWN\n"
+    if ! [ $gpus = '0' ]; then 
+        gres_nodes+="NodeName=${!name} Name=gpu File=/dev/nvidia"
+        gres_ids="0\n"
+        if ! [ $gpus = '1' ]; then 
+            gres_ids="[0-$(($gpus - 1))]\n"
+        fi
+        gres_nodes+=$gres_ids
+            
 done
 
 sudo sed -i "s/NodeName= NodeAddr= CPUs= Gres= State=UNKNOWN/$slurm_nodes/" ${slurm_conf_path}slurm.conf
@@ -50,6 +59,7 @@ last_index=$(( ${#nodes[@]} - 1 )) # Note: this relies on strict naming pattern:
 node_string="node[01-$(printf "%02d" $last_index)] "
 
 sudo sed -i "s/Nodes= /Nodes=$node_string/" ${slurm_conf_path}slurm.conf
+sudo sed -i "s@NodeName= Name=gpu File=/dev/nvidia0@$gres_nodes@" ${slurm_conf_path}gres.conf
 echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
 #---------------------
 
@@ -78,7 +88,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
 
 #-------SLURM---------
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install slurm-wlm -y
-sudo cp "${slurm_conf_path}slurm.conf" "${slurm_conf_path}cgroup.conf" "${slurm_conf_path}cgroup_allowed_devices_file.conf" /etc/slurm/
+sudo cp -r "${slurm_conf_path}"* /etc/slurm/
 sudo cp /etc/munge/munge.key $mount_dir
 sudo systemctl enable munge
 sudo systemctl start munge
