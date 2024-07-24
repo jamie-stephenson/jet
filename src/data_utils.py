@@ -27,18 +27,18 @@ class CustomBatchSampler(Sampler):
     Samples `batch_size` valid indices randomly without replacement from an ArrayDataset.
     The valid indices are multiples of `seq_len-overlap`. 
     """
-    def __init__(self, split_length, rank, world_size, args):
-        max_idx = split_length - args.seq_len - 1
-        self.indices = torch.arange(0,max_idx,args.seq_len-args.overlap)
+    def __init__(self, dataset_length, rank, world_size, args):
+        idx_upper_bound = dataset_length - args.seq_len
+        self.indices = torch.arange(0,idx_upper_bound,args.seq_len-args.overlap)
         self.nsamples = len(self.indices) # Total number of samples in dataset
         self.length = self.nsamples//(world_size*args.batch_size) # Length of sampler 
-        self.max_idx = self.length*world_size*args.batch_size # Trim nsamples so that every rank gets sampler with same length
+        self.nsamples_per_epoch = self.length*world_size*args.batch_size # Trim nsamples so that each epoch every rank gets sampler with same length
         self.rank = rank
         self.world_size = world_size  
         self.batch_size = args.batch_size      
 
     def __iter__(self):
-        shuffle = torch.randperm(self.nsamples)[self.rank:self.max_idx:self.world_size]
+        shuffle = torch.randperm(self.nsamples)[self.rank:self.nsamples_per_epoch:self.world_size]
         shuffled_indices = self.indices[shuffle].view(-1,self.batch_size)
         for i in range(self.length):
             yield shuffled_indices[i]
