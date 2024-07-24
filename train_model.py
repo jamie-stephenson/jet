@@ -220,7 +220,7 @@ def get_parser():
     parser.add_argument(
         "--log_per_val",
         default=10,
-        help="Number of logs per validation run."
+        help="Number of logs per validation run. Set to -1 to disable validation."
     )
 
     parser.add_argument(
