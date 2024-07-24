@@ -26,7 +26,7 @@ def main(args):
     train_dataloader = get_dataloader(paths.encoded_corpus, 'train', args)
     eval_dataloader = get_dataloader(paths.encoded_corpus, 'val', args)
     optimizer = get_optimizer(args.optimizer, model, args)
-    lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader), args)
+    lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader)//args.grad_accumulation_steps, args)
     
     model = train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args)
 
