@@ -26,4 +26,4 @@ srun torchrun \
     --rdzv_id=$RANDOM \
     --rdzv_backend=c10d \
     --rdzv_endpoint=$master_addr \
-    encode.py --config_file configs/tokenizer_config.yaml
+    train_model.py --config_file configs/model_config.yaml
