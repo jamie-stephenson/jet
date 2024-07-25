@@ -39,10 +39,10 @@ for node in "${nodes[@]}"; do
     cpus="${node}[cpus]"
     gpus="${node}[gpus]"
     slurm_nodes+="NodeName=${!name} NodeAddr=${!addr} CPUs=${!cpus} Gres=gpu:${!gpus} State=UNKNOWN\n"
-    if ! [ $gpus = 0 ]; then 
+    if ! [ ${!gpus} = 0 ]; then 
         gres_nodes+="NodeName=${!name} Name=gpu File=/dev/nvidia"
         gres_ids="0\n"
-        if ! [ $gpus = 1 ]; then 
+        if ! [ ${!gpus} = 1 ]; then 
             gres_ids="[0-$(($gpus - 1))]\n"
         fi
         gres_nodes+=$gres_ids
