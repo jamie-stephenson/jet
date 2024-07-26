@@ -67,8 +67,17 @@ class ShardedDataset(IterableDataset):
         # To minimise differnce in dataloader length on each rank, each
         # epoch all ranks will form dataset from same number of shards.
         # This means the total number of shards we consider each epoch
-        # needs to be a multiple of world_size: 
-        self.nshards_per_epoch = world_size * (self.nshards // world_size) 
+        # needs to be a multiple of world_size:
+        if self.nshards < world_size: 
+            # Edge case: fewer shards than processes
+            self.nshards_per_epoch = world_size
+            split = 'val' if 'val' in shard_paths[0] else 'train'
+            if rank==0:
+                print("There are fewer shards than processes in the {} split ({}<{}). " 
+                    "Therefore the total number of main processes used when iterating over the {} dataloader will be {}."
+                    .format(split,self.nshards,world_size,split,self.nshards))
+        else: 
+            self.nshards_per_epoch = world_size * (self.nshards // world_size)
 
         # The following attributes will be set by the worker_init_fn (iff num_workers > 0):
         self.worker_id = 0
