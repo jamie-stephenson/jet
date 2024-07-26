@@ -101,12 +101,11 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
     return model
 
 def evaluate(model, dataloader, args, comm_fn):
-
     model_mode = model.training
     model.eval()
 
-    loss_sum = torch.tensor(0,dtype=torch.float).to(args.device)
-    nsamples = torch.tensor(0).to(args.device)
+    loss_sum = 0
+    nsamples = 0
 
     with torch.no_grad():
         for x, y in dataloader:
@@ -115,7 +114,7 @@ def evaluate(model, dataloader, args, comm_fn):
 
             logits = model(x)
 
-            loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+            loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1)).item()
             nsamples += 1
 
         comm_fn(loss_sum)
