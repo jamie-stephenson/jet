@@ -1,6 +1,7 @@
+from src.dist_utils import AllReduceJoinable
 import torch
-import torch.distributed as dist
 import torch.nn.functional as F
+from torch.distributed.algorithms.join import Join
 import time
 from tqdm import tqdm
 import wandb
@@ -13,7 +14,12 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     start_time = time.time()
 
-    dist_cm = model.join() if args.world_size > 1 else nullcontext()
+    if args.world_size > 1:
+        comm_fn = AllReduceJoinable(model.device, model.process_group)
+        dist_cm = Join([model,comm_fn]) 
+    else:
+        comm_fn = lambda x: x
+        dist_cm = nullcontext()
 
     batch = 0
     eff_batch = 0
@@ -27,7 +33,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                     print(f"Epoch {epoch}")
                 else:
                     wandb.log({"Epoch": epoch})
-
+                                
             for x, y in train_dataloader:
 
                 batch += 1
@@ -70,7 +76,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                     
 
                 if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
-                    val_loss = evaluate(model, eval_dataloader, args)
+                    val_loss = evaluate(model, eval_dataloader, args, comm_fn)
                 
                     if args.rank == 0:
                     
@@ -94,7 +100,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     return model
 
-def evaluate(model, dataloader, args):
+def evaluate(model, dataloader, args, comm_fn):
 
     model_mode = model.training
     model.eval()
@@ -112,8 +118,8 @@ def evaluate(model, dataloader, args):
             loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
             nsamples += 1
 
-        dist.all_reduce(loss_sum)
-        dist.all_reduce(nsamples)
+        comm_fn(loss_sum)
+        comm_fn(nsamples)
 
     loss = loss_sum/nsamples
 
