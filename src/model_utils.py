@@ -54,51 +54,52 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
                 loss.backward()
 
                 if batch%args.grad_accumulation_steps == 0: # Only take step when gradients have accumulated
+
+                    # -----------VALIDATION-&-LOGGING--------------   
+                
+                    if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0:
+                        current_time = int(time.time()) - int(start_time) 
+                        if args.no_wandb:
+                            print("-"*40)
+                            print(f"Effective Batch {eff_batch:.0f}")
+                            print("-"*40)
+                            print(f"Training has been executing for {current_time} seconds.")
+                            print(f"Current training loss is: {loss:.2f}")
+                        else:
+                            wandb.log({
+                                "Train Loss": loss.item(),
+                                "Learning Rate": optimizer.param_groups[0]['lr'],
+                                "Time": current_time,
+                                "Effective Batch Number": eff_batch
+                            })
+                        
+
+                    if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
+                        val_loss = val()
+                    
+                        if args.rank == 0:
+                        
+                            if args.no_wandb:
+                                print(f"Current validation loss is: {val_loss:.2f}")
+                            else:
+                                wandb.log({
+                                    "Val Loss": val_loss,
+                                })
+                                print("-"*40)
+                                print(f"Effective Batch {eff_batch:.0f}")
+                                print("-"*40)
+                            
+                            print('Sample Output:')
+                            response = generate(model,tokenizer,args.val_prompt,args.temp,args.device)
+                            print(args.val_prompt+response)
+                            
+                    # ----------------------------------------------       
+
                     optimizer.step()
                     lr_scheduler.step()
                     optimizer.zero_grad()
 
-                    eff_batch += 1 
-
-                # -----------VALIDATION-&-LOGGING--------------   
-            
-                if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0:
-                    current_time = int(time.time()) - int(start_time) 
-                    if args.no_wandb:
-                        print("-"*40)
-                        print(f"Effective Batch {eff_batch:.0f}")
-                        print("-"*40)
-                        print(f"Training has been executing for {current_time} seconds.")
-                        print(f"Current training loss is: {loss:.2f}")
-                    else:
-                        wandb.log({
-                            "Train Loss": loss.item(),
-                            "Learning Rate": optimizer.param_groups[0]['lr'],
-                            "Time": current_time,
-                            "Effective Batch Number": eff_batch
-                        })
-                    
-
-                if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
-                    val_loss = val()
-                
-                    if args.rank == 0:
-                    
-                        if args.no_wandb:
-                            print(f"Current validation loss is: {val_loss:.2f}")
-                        else:
-                            wandb.log({
-                                "Val Loss": val_loss,
-                            })
-                            print("-"*40)
-                            print(f"Effective Batch {eff_batch:.0f}")
-                            print("-"*40)
-                        
-                        print('Sample Output:')
-                        response = generate(model,tokenizer,args.val_prompt,args.temp,args.device)
-                        print(args.val_prompt+response)
-                        
-                # ----------------------------------------------           
+                    eff_batch += 1     
 
     train_time = int(time.time()) - int(start_time)
 
