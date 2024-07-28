@@ -92,8 +92,6 @@ def get_model(config):
         nn.Linear(config.embed_dim,config.vocab_size)
     )
 
-    model.to(config.device)
-    if config.world_size > 1:
-        model = DDP(model,config.device_id)
+    model = DDP(model.to(config.device),config.device_id)
 
     return model
