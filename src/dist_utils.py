@@ -1,7 +1,7 @@
 import torch
 import torch.distributed as dist
-from torch._C._distributed_c10d import ReduceOp
 from torch.distributed.algorithms.join import Join, JoinHook, Joinable
+from typing import Callable
 import os
 
 #========Handle Process Groups
@@ -32,47 +32,40 @@ def is_torchrun():
 #========Handle Non-Model Collective Comms within Join context
 #  e.g. sharing eval metrics 
 
-class AllReduceJoinHook(JoinHook):
+class FnJoinable(Joinable):
     """
-    Join hook for :class:`AllReduceJoinable`.
+    :class:`Joinable` that performs `fn(**kwargs)` for across *all* processes,
+    even those that have joined. The expected use case assumes that `fn` 
+    has some kind of collective communication so that it will synchronise this 
+    class's `__call__` method with the `main_hook` method of :class:`_FnJoinHook`, 
+    otherwise `fn` will repeatedly execute asyncronously from `__call__`. 
     """
-    def __init__(
-        self,
-        joinable,
-        op
-    ):
-        self.joinable = joinable
-        self.op = op
-
-    def main_hook(self):
-        """
-        Shadows the Comm's all-reduce by all-reducing a dim-1 zero tensor.
-        """
-        t = torch.tensor(0, device=self.joinable.device, dtype=torch.float32)
-        dist.all_reduce(t,self.op)
-
-    def post_hook(self, is_last_joiner: bool):
-        pass
-
-class AllReduceJoinable(Joinable):
-    """
-    :class:`Joinable` that performs `dist.all_reduce` for
-    the given float across all ranks that haven't joined.
-    """
-    def __init__(self, device, process_group, op=ReduceOp.SUM):
-        super(AllReduceJoinable, self).__init__()
+    def __init__(self, fn: Callable, device, process_group, **kwargs):
+        super(FnJoinable, self).__init__()
+        self.fn = fn
         self.device = device
         self.process_group = process_group
-        self.op = op
+        self.kwargs = kwargs
 
-    def __call__(self,input):
+    def __call__(self):
         Join.notify_join_context(self)
-        t = torch.tensor(input, device=self.device, dtype=torch.float32)
-        dist.all_reduce(t,self.op)
+        return self.fn(**self.kwargs)
 
-    def join_hook(self) -> JoinHook:
-        return AllReduceJoinHook(self,self.op)
+    def join(
+        self,
+        enable: bool = True,
+        throw_on_early_termination: bool = False,
+    ):
 
+        return Join(
+            [self],
+            enable,
+            throw_on_early_termination
+        )
+
+    def join_hook(self, **kwargs) -> JoinHook:
+        return _FnJoinHook(self)
+    
     @property
     def join_device(self) -> torch.device:
         return self.device
@@ -80,6 +73,17 @@ class AllReduceJoinable(Joinable):
     @property
     def join_process_group(self):
         return self.process_group
+    
+class _FnJoinHook(JoinHook):
+
+    def __init__(self,joinable):
+        self.joinable = joinable
+
+    def main_hook(self):
+        self.joinable.fn(**self.joinable.kwargs)          
+
+    def post_hook(self, is_last_joiner: bool):
+        pass
     
 #========Distributing Data
 

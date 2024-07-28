@@ -1,28 +1,32 @@
-from src.dist_utils import AllReduceJoinable
+from src.dist_utils import FnJoinable
 import torch
 import torch.nn.functional as F
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
 from torch.distributed.algorithms.join import Join
 import time
-from tqdm import tqdm
 import wandb
 import os
-from contextlib import nullcontext
 
-def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
+def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
     model.train()
 
-    start_time = time.time()
+    val = FnJoinable(
+        evaluate,
+        model.device, 
+        model.process_group,
+        model=model,
+        loader=eval_dataloader,
+        args=args
+    )
 
-    if args.world_size > 1:
-        comm_fn = AllReduceJoinable(model.device, model.process_group)
-        dist_cm = Join([model,comm_fn]) 
-    else:
-        comm_fn = lambda x: x
-        dist_cm = nullcontext()
+    dist_cm = Join([model,val]) 
 
     batch = 0
     eff_batch = 0
+
+    start_time = time.time()
 
     with dist_cm:
         for epoch in range(args.epochs):
@@ -76,7 +80,7 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
                     
 
                 if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
-                    val_loss = evaluate(model, eval_dataloader, args, comm_fn)
+                    val_loss = val()
                 
                     if args.rank == 0:
                     
@@ -100,25 +104,25 @@ def train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_schedule
 
     return model
 
-def evaluate(model, dataloader, args, comm_fn):
+def evaluate(model, loader, args):
     model_mode = model.training
     model.eval()
 
-    loss_sum = 0
-    nsamples = 0
+    loss_sum = torch.tensor(0,dtype=torch.float32)
+    nsamples = torch.tensor(0,dtype=torch.float32)
 
     with torch.no_grad():
-        for x, y in dataloader:
+        for x, y in loader:
 
             x, y = x.to(args.device), y.to(args.device)
 
-            logits = model(x)
+            logits = model.module.forward(x) # No direct call to avoid join hooks
 
             loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1)).item()
             nsamples += 1
 
-        comm_fn(loss_sum)
-        comm_fn(nsamples)
+        dist.all_reduce(loss_sum)
+        dist.all_reduce(nsamples)
 
     loss = loss_sum/nsamples
 
@@ -133,14 +137,14 @@ def generate(model,tokenizer,string,temp,device='cpu'):
     model.eval()
 
     # Hacky way to infer seq_len without needing args, allows use of `generate` outside training scenario
-    seq_len = list(model.modules())[int(os.getenv('WORLD_SIZE',1))>1][0].positional_embedding.num_embeddings
+    seq_len = list(model.modules())[1][0].positional_embedding.num_embeddings
 
     output = []
 
     with torch.no_grad():
         x = torch.tensor(tokenizer.encode(string)[-seq_len:]).view(1,-1).to(device) # (1,seq_len)
         for _ in range(20): #TODO Implement special tokens so this doesn't need an arbitrary limit.    
-            prob = F.softmax(model(x)[0, -1] / temp,dim=0) # (vocab_size,)
+            prob = F.softmax(model.module.forward(x)[0, -1] / temp,dim=0) # (vocab_size,)
             next_token = torch.multinomial(prob, 1).view(1,-1) # (1,1)
             x = torch.cat((x, next_token),dim=1)[:,-seq_len:] # (1,seq_len)
             output.append(next_token.item())
