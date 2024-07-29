@@ -1,12 +1,11 @@
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR, _warn_get_lr_called_within_step
 import warnings
 
 class OverflowOneCycleLR(OneCycleLR):
     """OneCycleLR made tolerant to estimated `total_steps`"""
     def get_lr(self):
-        if not self._get_lr_called_within_step:
-            warnings.warn("To get the last learning rate computed by the scheduler, "
-                          "please use `get_last_lr()`.", UserWarning)
+
+        _warn_get_lr_called_within_step(self)
 
         lrs = []
         step_num = self.last_epoch
@@ -27,23 +26,31 @@ class OverflowOneCycleLR(OneCycleLR):
             return final_lrs
 
         for group in self.optimizer.param_groups:
-            start_step = 0
+            start_step = 0.0
             for i, phase in enumerate(self._schedule_phases):
-                end_step = phase['end_step']
+                end_step = phase["end_step"]
                 if step_num <= end_step or i == len(self._schedule_phases) - 1:
                     pct = (step_num - start_step) / (end_step - start_step)
-                    computed_lr = self.anneal_func(group[phase['start_lr']], group[phase['end_lr']], pct)
+                    computed_lr = self._anneal_func(
+                        group[phase["start_lr"]], group[phase["end_lr"]], pct
+                    )
                     if self.cycle_momentum:
-                        computed_momentum = self.anneal_func(group[phase['start_momentum']], group[phase['end_momentum']], pct)
+                        computed_momentum = self._anneal_func(
+                            group[phase["start_momentum"]],
+                            group[phase["end_momentum"]],
+                            pct,
+                        )
                     break
-                start_step = phase['end_step']
+                start_step = phase["end_step"]
 
-            lrs.append(computed_lr)
+            lrs.append(computed_lr)  # type: ignore[possibly-undefined]
             if self.cycle_momentum:
                 if self.use_beta1:
-                    group['betas'] = (computed_momentum, *group['betas'][1:])
+                    group["betas"] = (computed_momentum, *group["betas"][1:])  # type: ignore[possibly-undefined]
                 else:
-                    group['momentum'] = computed_momentum
+                    group[
+                        "momentum"
+                    ] = computed_momentum  # type: ignore[possibly-undefined]
 
         return lrs
 
