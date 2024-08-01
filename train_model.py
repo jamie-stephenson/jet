@@ -218,7 +218,7 @@ def get_parser():
 
     parser.add_argument(
         "--val_prompt",
-        default="Hello, my name is Jet. J.E.T. stands for ",
+        default="Hello, my name is Jet. J.E.T. stands for",
         help="Prompt from which to generate sample output during training."
     )
 

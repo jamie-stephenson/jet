@@ -91,7 +91,7 @@ def get_model(config):
         *[TransformerBlock(config) for _ in range(config.num_blocks)],
         nn.Linear(config.embed_dim,config.vocab_size)
     )
-
-    model = DDP(model.to(config.device),config.device_id)
+    torch.set_float32_matmul_precision('high')
+    model = torch.compile(DDP(model.to(config.device),config.device_id),mode="reduce-overhead")
 
     return model
