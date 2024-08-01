@@ -109,8 +109,8 @@ def evaluate(model, loader, args):
     model_mode = model.training
     model.eval()
 
-    loss_sum = torch.tensor(0,dtype=torch.float32)
-    nsamples = torch.tensor(0,dtype=torch.float32)
+    loss_sum = torch.tensor(0,dtype=torch.float32,device=args.device)
+    nsamples = torch.tensor(0,dtype=torch.float32,device=args.device)
 
     with torch.no_grad():
         for x, y in loader:
@@ -119,7 +119,7 @@ def evaluate(model, loader, args):
 
             logits = model.module.forward(x) # No direct call to avoid join hooks
 
-            loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1)).item()
+            loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
             nsamples += 1
 
         dist.all_reduce(loss_sum)
