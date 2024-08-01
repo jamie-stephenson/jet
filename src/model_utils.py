@@ -138,7 +138,7 @@ def generate(model,tokenizer,string,temp,device='cpu'):
     model.eval()
 
     # Hacky way to infer seq_len without needing args, allows use of `generate` outside training scenario
-    seq_len = list(model.module.modules())[0][0].positional_embedding.num_embeddings
+    seq_len = next(v.num_embeddings for k,v in model.module.named_modules() if 'positional' in k)
 
     output = []
 
