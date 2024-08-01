@@ -256,7 +256,7 @@ class Tokenizer:
         dist.barrier()
         
         dtype = np.uint16
-
+        split = "train"
         shard_index = 0
         # Preallocate buffer to hold current shard
         all_tokens_np = np.empty((shard_size,), dtype=dtype)
@@ -267,7 +267,6 @@ class Tokenizer:
         for tokens in tokens_iter:
             while token_count + len(tokens) >= shard_size:
                 # Write the current shard and start a new one
-                split = "val" if shard_index == 0 else "train"
                 filename = os.path.join(path, f"{self.rank}_{split}_{shard_index:06d}")
                 
                 # Split the document into whatever fits in this shard; the remainder goes to next one
@@ -294,33 +293,11 @@ class Tokenizer:
                 progress_bar.update(len(tokens))
 
         if token_count != 0:
-            split = "val" if shard_index == 0 else "train"
+            split = "train" if shard_index == 0 else "val"
             filename = os.path.join(path, f"{self.rank}_{split}_{shard_index:06d}")
             np.save(filename, all_tokens_np[:token_count])
 
         dist.barrier()
-
-        if self.rank == 0:
-            # combine shards into memmaps
-            for split in ['train','val']:
-                shard_paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
-
-                total_size = 0
-                for shard in shard_paths:
-                    arr = np.load(shard, mmap_mode='r')
-                    total_size += arr.size
-                
-                memmap_filename = os.path.join(path, f"{split}.mmap")
-                combined_array = np.memmap(memmap_filename, dtype=dtype, mode='w+', shape=(total_size,))
-
-                start_idx = 0
-                for shard in shard_paths:
-                    arr = np.load(shard, mmap_mode='r')
-                    end_idx = start_idx + arr.size
-                    combined_array[start_idx:end_idx] = arr[:]
-                    start_idx = end_idx
-
-                combined_array.flush()
 
     def save_merges(self, path):
         if self.rank == 0:

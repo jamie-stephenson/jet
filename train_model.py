@@ -54,13 +54,6 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--encoded_format",
-        choices=['mmap','shards'],
-        type=str,
-        help="The format of the encoded corpus."
-    )
-
-    parser.add_argument(
         "--tokenizer_corpus",
         type=str,
         help="Name of corpus used to train tokenizer that encoded `corpus`."

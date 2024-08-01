@@ -1,51 +1,8 @@
-from torch.utils.data import DataLoader, Dataset, IterableDataset, Sampler
+from torch.utils.data import DataLoader, IterableDataset
 import torch 
 import numpy as np
 import os
 
-class ArrayDataset(Dataset):
-    """
-    Dataset to sample sequences of tokens of size `seq_len` from an array of tokens.
-    "Array" can be anything indexed using slice notation ('arr[start:end]') and that 
-    `torch.tensor` accepts as valid 'data', e.g. list, np.array, np.memmap.
-    """
-    def __init__(self, data, seq_len):
-        self.data = data 
-        self.seq_len = seq_len
-        
-    def __len__(self):
-        """Number of tokens"""
-        return len(self.data)   
-    
-    def __getitem__(self, idx):
-        sample = torch.tensor(self.data[idx:idx+self.seq_len],dtype=torch.long)
-        targets = torch.tensor(self.data[idx+1:idx+self.seq_len+1],dtype=torch.long)  
-        return sample,targets
-    
-class CustomBatchSampler(Sampler):
-    """
-    Samples `batch_size` valid indices randomly without replacement from an ArrayDataset.
-    The valid indices are multiples of `seq_len-overlap`. 
-    """
-    def __init__(self, dataset_length, rank, world_size, args):
-        idx_upper_bound = dataset_length - args.seq_len
-        self.indices = torch.arange(0,idx_upper_bound,args.seq_len-args.overlap)
-        self.nsamples = len(self.indices) # Total number of samples in dataset
-        self.length = self.nsamples//(world_size*args.batch_size) # Length of sampler 
-        self.nsamples_per_epoch = self.length*world_size*args.batch_size # Trim nsamples so that each epoch every rank gets sampler with same length
-        self.rank = rank
-        self.world_size = world_size  
-        self.batch_size = args.batch_size      
-
-    def __iter__(self):
-        shuffle = torch.randperm(self.nsamples)[self.rank:self.nsamples_per_epoch:self.world_size]
-        shuffled_indices = self.indices[shuffle].view(-1,self.batch_size)
-        for i in range(self.length):
-            yield shuffled_indices[i]
-    
-    def __len__(self):
-        return self.length #I have no idea if this is right, changing it seems to do nothing.
-    
 class ShardedDataset(IterableDataset):
     """
     Dataset to sample sequences of tokens of size `seq_len` from a directory containing numpy shards.
@@ -64,7 +21,7 @@ class ShardedDataset(IterableDataset):
         self.shard_paths = shard_paths
         self.nshards = len(shard_paths)
 
-        # To minimise differnce in dataloader length on each rank, each
+        # To minimise difference in dataloader length on each rank, each
         # epoch all ranks will form dataset from same number of shards.
         # This means the total number of shards we consider each epoch
         # needs to be a multiple of world_size:
@@ -130,22 +87,15 @@ def seed_worker(worker_id):
     dataset.rank_rng.manual_seed(global_seed+dataset.rank)
 
 def get_dataloader(path,split,args):     
-    if args.encoded_format == 'mmap':
-        dtype=np.uint16 
-        path = os.path.join(path,f"{split}.mmap")
-        data = np.memmap(path,dtype,mode='r+')
-        dataset = ArrayDataset(data,args.seq_len)
-        sampler = CustomBatchSampler(len(dataset), args.rank, args.world_size, args)
-        dataloader = DataLoader(dataset=dataset, batch_sampler=sampler, num_workers=args.num_workers)
-    elif args.encoded_format == 'shards':
-        paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard]
-        dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
-        dataloader = DataLoader(
-                        dataset=dataset, 
-                        batch_size=args.batch_size, 
-                        num_workers=args.num_workers,
-                        worker_init_fn=seed_worker
-                    )
+
+    paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard]
+    dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
+    dataloader = DataLoader(
+                    dataset=dataset, 
+                    batch_size=args.batch_size, 
+                    num_workers=args.num_workers,
+                    worker_init_fn=seed_worker
+                )
     
     return dataloader
 

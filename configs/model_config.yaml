@@ -1,7 +1,6 @@
 name: jet
 batch_size: 16
 grad_accumulation_steps: 1
-encoded_format: shards
 corpus: ipl_commentary
 tokenizer_corpus: ipl_commentary
 device: cpu
