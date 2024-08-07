@@ -54,6 +54,10 @@ class Tokenizer:
             t_log = t0  
             print("\nTraining tokenizer...")
 
+        self.bp_counts = {}
+        for block in self.blocks:
+            self._count_bps(block,self.bp_counts)
+
         while self.current_vocab_size < self.max_vocab_size:
             pair_to_merge = self._sync_bp_max()
             if self.rank == 0:
@@ -72,11 +76,6 @@ class Tokenizer:
 
     def _sync_bp_max(self) -> Tuple:
 
-        if self.current_vocab_size%256==0:
-            self.bp_counts = {}
-            for block in self.blocks:
-                self._count_bps(block,self.bp_counts)
-
         all_bp_counts = [None]*self.world_size
         dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
         
@@ -84,7 +83,9 @@ class Tokenizer:
         total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
                             for bp in unique_bps}
         
-        if self.current_vocab_size%256==0:
+        pair_to_merge = max(total_bp_counts, key=total_bp_counts.get)
+        
+        if self.current_vocab_size==256 or total_bp_counts[pair_to_merge] < self.min_freq:
             # Claim: Let x(pair_to_merge) = pair_to_merge's overall position in merge ordering then:
             # bp_counts[pair_to_merge] > a/x(pair_to_merge) for some a.
             # e.g. if pair_to_merge is the 3rd bp we chose to merge, then bp_counts[pair_to_merge] > a/3 = a/(current_vocab_size - 255)
@@ -93,21 +94,25 @@ class Tokenizer:
             #
             # We estimate a and then set min_freq to a/(x + n)
             # This way, if our claim holds, we will track fewer bp_counts but still calculate the correct merges
-            # The only downside is that it requires recounting all bp_counts and resetting min_freq every n merges.
-            # Setting n = 256 means the recounting overhead is small compared to the time saved from tracking fewer bp_counts.
+            # The only downside is that it requires recounting all bp_counts and resetting min_freq every time 
+            # `total_bp_counts[pair_to_merge]` gets too low.
             # a is estimated as follows:
             # Suppose a bp with count k is the pth bp to be merged. Then p*k is an approximation for a.
             # Repeat for many bps and average to get an estimate for a.
-            #
-            # So far in practice this results in very safe values for min_freq, while still giving significant speedup for highly distributed workloads.
             x = self.current_vocab_size - 255
             a_estimate = np.mean([(x+i)*k[1] for i,k in enumerate(Counter(total_bp_counts).most_common())])
-            self.min_freq = int(a_estimate/(x+256)) 
+            self.min_freq = 100*int(a_estimate/(x+256)) 
             if self.rank==0:
                 print(f"Minimum frequency set to {self.min_freq}.")
 
-        self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
-        pair_to_merge = max(total_bp_counts, key=total_bp_counts.get)
+            # Now that we have lowered `min_freq` we have to recount all the bps
+            self.bp_counts = {}
+            for block in self.blocks:
+                self._count_bps(block,self.bp_counts)
+
+        else:
+            self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
+        
         
         if self.rank == 0:
             print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
