@@ -80,22 +80,8 @@ class Tokenizer:
         pair_to_merge, total_bp_counts = self._sync_max_bp()
         
         if self.current_vocab_size==256 or total_bp_counts[pair_to_merge] < self.min_freq:
-            # Claim: Let x(pair_to_merge) = pair_to_merge's overall position in merge ordering then:
-            # bp_counts[pair_to_merge] > a/x(pair_to_merge) for some a.
-            # e.g. if pair_to_merge is the 3rd bp we chose to merge, then bp_counts[pair_to_merge] > a/3 = a/(current_vocab_size - 255)
-            # This claim is more of a hope that the initial bp_counts and, by extension, 
-            # the counts of the bps that we merge, Follow Zipf's law.
-            #
-            # We estimate a and then set min_freq to a/(x + n)
-            # This way, if our claim holds, we will track fewer bp_counts but still calculate the correct merges
-            # The only downside is that it requires recounting all bp_counts and resetting min_freq every time 
-            # `total_bp_counts[pair_to_merge]` gets too low.
-            # a is estimated as follows:
-            # Suppose a bp with count k is the pth bp to be merged. Then p*k is an approximation for a.
-            # Repeat for many bps and average to get an estimate for a.
-            x = self.current_vocab_size - 255
-            a_estimate = np.mean([(x+i)*k[1] for i,k in enumerate(Counter(total_bp_counts).most_common())])
-            self.min_freq = 100*int(a_estimate/(x+256)) 
+            x = total_bp_counts[pair_to_merge] if self.current_vocab_size==256 else self.min_freq
+            self.min_freq = x//2
             if self.rank==0:
                 print(f"Minimum frequency set to {self.min_freq}.")
 
