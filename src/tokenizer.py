@@ -59,7 +59,7 @@ class Tokenizer:
             self._count_bps(block,self.bp_counts)
 
         while self.current_vocab_size < self.max_vocab_size:
-            pair_to_merge = self._sync_bp_max()
+            pair_to_merge = self._find_next_merge()
             if self.rank == 0:
                 self.merges[pair_to_merge] = self.current_vocab_size                
                 if wandb.run is not None:                    
@@ -73,17 +73,11 @@ class Tokenizer:
 
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
+    
+    def _find_next_merge(self) -> Tuple:
+        """Finds next merge by syncing across processes and adjusting `min_freq` if needed."""
 
-    def _sync_bp_max(self) -> Tuple:
-
-        all_bp_counts = [None]*self.world_size
-        dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
-        
-        unique_bps = set(bp for bp_counts in all_bp_counts for bp in bp_counts.keys())
-        total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
-                            for bp in unique_bps}
-        
-        pair_to_merge = max(total_bp_counts, key=total_bp_counts.get)
+        pair_to_merge, total_bp_counts = self._sync_max_bp()
         
         if self.current_vocab_size==256 or total_bp_counts[pair_to_merge] < self.min_freq:
             # Claim: Let x(pair_to_merge) = pair_to_merge's overall position in merge ordering then:
@@ -105,14 +99,15 @@ class Tokenizer:
             if self.rank==0:
                 print(f"Minimum frequency set to {self.min_freq}.")
 
-            # Now that we have lowered `min_freq` we have to recount all the bps
+            # Recount bps
             self.bp_counts = {}
             for block in self.blocks:
                 self._count_bps(block,self.bp_counts)
+            
+            # Resync across processes
+            pair_to_merge, total_bp_counts = self._sync_max_bp()
 
-        else:
-            self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
-        
+        self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
         
         if self.rank == 0:
             print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
@@ -120,12 +115,25 @@ class Tokenizer:
             if wandb.run is not None:
                 wandb.log({
                     "Merged bytepair count": total_bp_counts[pair_to_merge],
-                    "Length total_bp_counts": len(unique_bps),
+                    "Length total_bp_counts": len(total_bp_counts),
                     "Length rank 0 bp_counts": len(self.bp_counts),
                     "Number of tokens": sum(len(block) for block in self.blocks)
                 })
 
         return pair_to_merge
+    
+    def _sync_max_bp(self) -> Tuple[Tuple,int]:
+
+        all_bp_counts = [None]*self.world_size
+        dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
+        
+        unique_bps = set(bp for bp_counts in all_bp_counts for bp in bp_counts.keys())
+        total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
+                            for bp in unique_bps}
+        
+        max_bp = max(total_bp_counts, key=total_bp_counts.get)
+
+        return max_bp, total_bp_counts
     
     def _merge_and_update_bp_counts(self, bytepair):
         for block_idx in range(len(self.blocks)):
