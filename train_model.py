@@ -1,10 +1,8 @@
 from jet import get_model
-from utils.model import train, get_dataloader
+from utils.model import train, get_dataloader, get_optimizer, get_lr_scheduler
 from utils.tokenizer import Tokenizer
 from utils.dist import setup, cleanup
-from utils.files import PathFetcher, args_from_config_file
-from optimizers import get_optimizer
-from lr_schedulers import get_lr_scheduler
+from utils.files import PathFetcher, args_from_config_file 
 
 import torch
 import torch.distributed as dist
