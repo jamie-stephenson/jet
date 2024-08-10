@@ -1,5 +1,6 @@
 import torch
 from torch.distributed.algorithms.join import Join, JoinHook, Joinable
+
 from typing import Callable
 
 class FnJoinable(Joinable):

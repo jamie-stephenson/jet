@@ -1,6 +1,7 @@
-# Use this file to configure the directory structure of any input and output from `train.py`, `encode.py` and `download.py`
-# See `file_utils.py`'s `PathFetcher` class for the implementation of these templates. 
-# Any arg parsed by the arg parser can be use in your template configuration, as well as the current time.
+# Use this file to configure the directory structure of any input and output from 
+# `download.py`, `train_tokenizer.py`, `encode.py` and `train_model.py`.
+# See `utils.files.PathFetcher` for the implementation of these templates. 
+# Any arg parsed by the python script's arg parser can be use in your template configuration, as well as the current time.
 
 model: './runs/{name}_{time}/model.pt'
 config: './runs/{name}_{time}/config.yaml'

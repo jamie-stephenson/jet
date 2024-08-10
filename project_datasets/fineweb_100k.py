@@ -1,5 +1,7 @@
+from utils.dist import find_opus_indices
+
 from datasets import load_dataset
-from utils.dist.data import find_opus_indices
+
 import os
 
 #-----CONFIG------

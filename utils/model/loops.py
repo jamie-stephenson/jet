@@ -1,12 +1,13 @@
-from utils.dist.join import FnJoinable
+from utils.dist import FnJoinable
+
 import torch
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from torch.distributed.algorithms.join import Join
+
 import time
 import wandb
-import os
 
 def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
 
