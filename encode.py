@@ -1,6 +1,6 @@
-from src.dist_utils import setup, cleanup
-from src.tokenizer import Tokenizer
-from src.file_utils import PathFetcher, args_from_config_file
+from utils.dist import setup, cleanup
+from utils.tokenizer.tokenizer import Tokenizer
+from utils.files import PathFetcher, args_from_config_file
 from project_datasets import get_dataset
 import torch.distributed as dist
 import argparse

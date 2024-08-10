@@ -1,11 +1,14 @@
-from src.dist_utils import setup, cleanup
-from src.tokenizer import Tokenizer
-from src.file_utils import PathFetcher, args_from_config_file
+from utils.tokenizer import Tokenizer
+from utils.dist import setup, cleanup
+from utils.files import PathFetcher, args_from_config_file
 from project_datasets import get_dataset
+
 import torch.distributed as dist
+import wandb
+
 import argparse
 import os
-import wandb
+
 
 def main(args):
     rank, world_size = dist.get_rank(), dist.get_world_size()

@@ -1,7 +1,6 @@
 import yaml
 from datetime import datetime
 import os
-import math
 
 class PathFetcher:
     """
@@ -45,8 +44,3 @@ def get_size(start_path = '.'):
                 total_size += os.path.getsize(fp)
 
     return total_size
-    
-
-    
-
-

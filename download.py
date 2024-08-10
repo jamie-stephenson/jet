@@ -1,4 +1,4 @@
-from src.file_utils import PathFetcher
+from utils.files import PathFetcher
 import argparse
 import importlib
 import os

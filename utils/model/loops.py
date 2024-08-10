@@ -1,4 +1,4 @@
-from src.dist_utils import FnJoinable
+from utils.dist.join import FnJoinable
 import torch
 import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP

@@ -1,17 +1,19 @@
 from jet import get_model
-from src.data_utils import get_dataloader
-from src.dist_utils import setup, cleanup
-from src.file_utils import PathFetcher, args_from_config_file
-from src.model_utils import train
-from src.tokenizer import Tokenizer
+from utils.model import train, get_dataloader
+from utils.tokenizer import Tokenizer
+from utils.dist import setup, cleanup
+from utils.files import PathFetcher, args_from_config_file
 from optimizers import get_optimizer
 from lr_schedulers import get_lr_scheduler
+
 import torch
 import torch.distributed as dist
+import wandb
+
 import argparse
 import os
 import yaml
-import wandb
+
 
 def main(args):
 

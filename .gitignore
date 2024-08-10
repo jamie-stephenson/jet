@@ -4,7 +4,7 @@ data
 test.ipynb
 runs
 tokenizers
-minbpe
+*minbpe
 .vscode
 wandb
 logs

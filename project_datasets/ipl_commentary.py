@@ -1,4 +1,4 @@
-from src.dist_utils import split_txt
+from utils.dist.data import split_txt
 from datasets import Dataset
 
 #-----CONFIG------

@@ -1,15 +1,18 @@
-import os
-import torch
+from .datastructures import DistributedMultiset, IndexedBlocks, IndexedList
+
 import torch.distributed as dist
-import multiprocessing as mp
+import torch.multiprocessing as mp
 import numpy as np
+import wandb
+from tqdm.auto import tqdm
+
+import os
 import re
-from collections import Counter
 import pickle
 from typing import Tuple, List
 from time import time
-import wandb
-from tqdm.auto import tqdm
+from itertools import pairwise, chain
+
 
 class Tokenizer:
     """
@@ -31,7 +34,7 @@ class Tokenizer:
         Trains new tokenizer from a dataset. When using distributed training, `corpus` 
         should be the chunk of the dataset that the current rank will handle.
         """
-        tokenizer = cls({}, rank, world_size)
+        tokenizer = cls([], rank, world_size)
         tokenizer.corpus = dataset
         tokenizer.__train(vocab_size)
 
@@ -44,8 +47,15 @@ class Tokenizer:
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
 
-        blocks = self._regex_split('\n'.join(self.corpus['text']))
-        self.blocks = [list(block.encode('utf-8')) for block in blocks]
+        blocks_str = self._regex_split('\n'.join(self.corpus['text']))
+        blocks_utf8 = [block_str.encode('utf-8') for block_str in blocks_str]
+        self.blocks = IndexedBlocks(blocks_utf8)
+        self.bp_counts = DistributedMultiset(
+            chain(*[pairwise(block) for block in blocks_utf8]),
+            world_size=self.world_size
+        )
+
+        del blocks_str, blocks_utf8
 
         print(f"Rank {self.rank} ready to train.")
         dist.barrier()
@@ -54,104 +64,51 @@ class Tokenizer:
             t_log = t0  
             print("\nTraining tokenizer...")
 
-        self.bp_counts = {}
-        for block in self.blocks:
-            self._count_bps(block,self.bp_counts)
-
         while self.current_vocab_size < self.max_vocab_size:
-            pair_to_merge = self._find_next_merge()
+            
             if self.rank == 0:
-                self.merges[pair_to_merge] = self.current_vocab_size                
+                len_comms = len(self.bp_counts.to_add)+len(self.bp_counts.to_remove)
+            
+            pair_to_merge = self.bp_counts.most_common
+
+            if self.rank == 0:
+                self.merges.append((pair_to_merge,self.current_vocab_size))
+
+                count = self.bp_counts.l[0].count
+                print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
+                  f" with count {count}.")
+                
                 if wandb.run is not None:                    
                     wandb.log({
                         "Total Time": time()-t0,
                         "Iter Time": time()-t_log,
+                        "Merged bytepair count": count,
+                        "Length bp_counts": len(self.bp_counts.l),
+                        "Length rank 0 comms (to_add + to_remove)": len_comms                        
                     })
                     t_log = time()
+
             self._merge_and_update_bp_counts(pair_to_merge)
             self.current_vocab_size += 1
 
         if self.rank == 0:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
     
-    def _find_next_merge(self) -> Tuple:
-        """Finds next merge by syncing across processes and adjusting `min_freq` if needed."""
-
-        pair_to_merge, total_bp_counts = self._sync_max_bp()
-        
-        if self.current_vocab_size==256 or total_bp_counts[pair_to_merge] < self.min_freq:
-            x = total_bp_counts[pair_to_merge] if self.current_vocab_size==256 else self.min_freq
-            self.min_freq = x//2
-            if self.rank==0:
-                print(f"Minimum frequency set to {self.min_freq}.")
-
-            # Recount bps
-            self.bp_counts = {}
-            for block in self.blocks:
-                self._count_bps(block,self.bp_counts)
-            
-            # Resync across processes
-            pair_to_merge, total_bp_counts = self._sync_max_bp()
-
-        self.bp_counts = {k:v for k,v in self.bp_counts.items() if total_bp_counts[k]>=self.min_freq}
-        
-        if self.rank == 0:
-            print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
-                  f" with count {total_bp_counts[pair_to_merge]}.")
-            if wandb.run is not None:
-                wandb.log({
-                    "Merged bytepair count": total_bp_counts[pair_to_merge],
-                    "Length total_bp_counts": len(total_bp_counts),
-                    "Length rank 0 bp_counts": len(self.bp_counts),
-                    "Number of tokens": sum(len(block) for block in self.blocks)
-                })
-
-        return pair_to_merge
-    
-    def _sync_max_bp(self) -> Tuple[Tuple,int]:
-
-        all_bp_counts = [None]*self.world_size
-        dist.all_gather_object(object_list=all_bp_counts,obj=self.bp_counts)
-        
-        unique_bps = set(bp for bp_counts in all_bp_counts for bp in bp_counts.keys())
-        total_bp_counts = {bp:sum(bp_counts[bp] for bp_counts in all_bp_counts if bp in bp_counts) 
-                            for bp in unique_bps}
-        
-        max_bp = max(total_bp_counts, key=total_bp_counts.get)
-
-        return max_bp, total_bp_counts
-    
     def _merge_and_update_bp_counts(self, bytepair):
-        for block_idx in range(len(self.blocks)):
-            i = 1
-            while i < len(self.blocks[block_idx]):
-                if self.blocks[block_idx][i-1:i+1]==list(bytepair):
-                    # If X=bc is our bytepair to merge and our string is abcd, then we need 
-                    # to decrease the ab and cd counts and increase the aX and Xd counts.
-                    # We say ab and cd have `location` = "before" and "after" respectively
-                    if i > 1:
-                        self._update_bp_counts((self.blocks[block_idx][i-2],self.blocks[block_idx][i-1]),"before")
-                    if i < len(self.blocks[block_idx]) - 1: 
-                        self._update_bp_counts((self.blocks[block_idx][i],self.blocks[block_idx][i+1]),"after")
-                    
-                    del self.blocks[block_idx][i]
-                    self.blocks[block_idx][i-1] = self.current_vocab_size
-                i+=1
-        self.bp_counts.pop(bytepair,None)
-
-    def _update_bp_counts(self, bp, location):
-        if bp in self.bp_counts:
-            self.bp_counts[bp] -= 1
-        new_bp = (bp[0],self.current_vocab_size) if location == "before" else (self.current_vocab_size,bp[1])
-        self.bp_counts[new_bp] = self.bp_counts.get(new_bp,0) + 1
-    
-    @staticmethod
-    def _count_bps(block, bp_counts=None):
-        """bp_counts for a single block"""
-        bp_counts = {} if bp_counts is None else bp_counts
-        for pair in zip(block, block[1:]):
-            bp_counts[pair] = bp_counts.get(pair, 0) + 1
-        return bp_counts
+        for node in self.blocks.index[bytepair]:
+            if node.val != bytepair[0] or node.next is None or node.next.val != bytepair[1]:
+                continue  # The index was stale - continue.
+            # Say we're merging "bc" to "X" in "abcd", and the node we're visiting now is "b".
+            self.bp_counts.remove(bytepair) # Remove "bc".
+            if node.next.next is not None:
+                self.bp_counts.remove((node.next.val, node.next.next.val))  # Remove "cd".
+                self.bp_counts.add((self.current_vocab_size, node.next.next.val))  # Add "Xd".
+            if node.prev is not None:
+                self.bp_counts.remove((node.prev.val, bytepair[0]))  # Remove "ab".
+                self.bp_counts.add((node.prev.val, self.current_vocab_size))  # Add "aX".
+            node.next.delete()  # Delete "c", we now have "abd".
+            node.val = self.current_vocab_size  # Update "b" to "X", we now have "aXd".
+            self.blocks.update_index(node)  # Add "aX" and "Xd" to the index.    
     
     def _regex_split(self, string):
         return re.findall(self.pattern, string)
@@ -160,36 +117,23 @@ class Tokenizer:
 
     #----------------------ENCODING-METHODS------------------------
 
-    def encode(self, text: str):
-        blocks = [list(block.encode('utf-8')) for block in self._regex_split(text)]
-        for block in blocks:
-            while len(block) >= 2:
-                bp_counts = self._count_bps(block)
-                bp = min(bp_counts, key=lambda p: self.merges.get(p, float("inf")))
-                if bp not in self.merges:
-                    break
-                merged_byte = self.merges[bp]
-                block = self._merge_bytepair(block,bp,merged_byte)
-        return self.flatten_blocks(blocks)
-    
-    @staticmethod
-    def _merge_bytepair(block: List[int], bytepair: Tuple[int,int],merged_byte: int) -> List[int]:  
-        i = 1
-        while i < len(block):
-            if block[i-1:i+1]==list(bytepair):                
-                del block[i]
-                block[i-1] = merged_byte
-            i+=1
-        return block
+    def encode(self, text: str) -> List[int]:
+        indexed_list = IndexedList(text.encode('utf-8'))
+        for bp, token in self.merges:
+            for node in indexed_list.index[bp]:
+                if node.val != bp[0] or node.next is None or node.next.val != bp[1]:
+                    continue  # The index was stale - continue.
+                node.next.delete() 
+                node.val = token 
+                indexed_list.update_index(node)
+        return [node.val for node in indexed_list]
     
     def save_encoded_corpus(self,dataset,path):
         """
         Encode and save a corpus (that differs from the tokenizer corpus) 
-        to np.memmap and shards.
+        to shards.
         """
-        merges_list = [self.merges]
-        dist.broadcast_object_list(merges_list) # Ensure all ranks know correct merges
-        self.merges = merges_list[0]
+        dist.broadcast_object_list(self.merges) # Ensure all ranks know correct merges
 
         if self.rank==0:
             t0 = time()
@@ -203,25 +147,17 @@ class Tokenizer:
 
     def save_encoded_tokenizer_corpus(self, path):
         """
-        Save encoded tokenizer corpus as np.memmap and shards.
+        Save encoded tokenizer corpus as shards.
         Must be called after `__train`.
         """
         self._save_tokens(self.blocks,path,self.corpus.shard_size)
-
-    @staticmethod
-    def flatten_blocks(blocks: List[List[int]]) -> List[int]:
-        tokens = []
-        for block in blocks:
-            tokens += block
-        return tokens
     
     #------------------END-OF-ENCODING-METHODS--------------------
 
     #----------------------DECODING-METHODS-----------------------
         
     def decode(self, tokens: list) -> str:
-        print("WARNING: Execution of `Tokenizer.decode` currently only supported on a single process.")
-        for bytepair,merged_byte in reversed(list(self.merges.items())):
+        for bytepair,merged_byte in reversed(self.merges):
             tokens = self._unmerge_byte(tokens,merged_byte,bytepair)
         return bytes(tokens).decode('utf-8',errors='replace')
     
@@ -237,7 +173,7 @@ class Tokenizer:
     
     def decoded_tokens(self):
         """lists all merged token chunks as plain text"""
-        for token in self.merges.values():
+        for _,token in self.merges:
             print(f"Token {token} decodes to {self.decode([token])}")
 
     #------------------END-OF-DECODING-METHODS--------------------

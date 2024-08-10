@@ -1,5 +1,5 @@
 from datasets import load_dataset
-from src.dist_utils import find_opus_indices
+from utils.dist.data import find_opus_indices
 import os
 
 #-----CONFIG------
