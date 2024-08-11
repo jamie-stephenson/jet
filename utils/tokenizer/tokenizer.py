@@ -98,7 +98,7 @@ class Tokenizer:
             print(f"\nTraining completed in {time()-t0:.2f} seconds.")
     
     def _merge_and_update_bp_counts(self, bytepair):
-        for node in self.blocks.index[bytepair]:
+        for node in self.blocks.index.get(bytepair,[]):
             if node.val != bytepair[0] or node.next is None or node.next.val != bytepair[1]:
                 continue  # The index was stale - continue.
             # Say we're merging "bc" to "X" in "abcd", and the node we're visiting now is "b".
