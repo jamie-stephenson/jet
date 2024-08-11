@@ -47,6 +47,13 @@ class Tokenizer:
         self.current_vocab_size = 256
         self.max_vocab_size = vocab_size
 
+        print(f"Rank {self.rank} ready to train.")
+        dist.barrier()
+        if self.rank == 0:
+            t0 = time() 
+            t_log = t0  
+            print("\nTraining tokenizer...")
+
         blocks_str = self._regex_split('\n'.join(self.corpus['text']))
         blocks_utf8 = [block_str.encode('utf-8') for block_str in blocks_str]
         self.blocks = IndexedBlocks(blocks_utf8)
@@ -55,14 +62,10 @@ class Tokenizer:
             world_size=self.world_size
         )
 
-        del blocks_str, blocks_utf8
+        if self.rank == 0: 
+            print(f"Initialising data structures took {time()-t0}.")
 
-        print(f"Rank {self.rank} ready to train.")
-        dist.barrier()
-        if self.rank == 0:
-            t0 = time() 
-            t_log = t0  
-            print("\nTraining tokenizer...")
+        del blocks_str, blocks_utf8
 
         while self.current_vocab_size < self.max_vocab_size:
             
