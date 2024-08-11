@@ -187,7 +187,6 @@ class Multiset:
         self.l[pos] = node
         node.pos = pos
 
-
 class DistributedMultiset(Multiset):
     def __init__(self, init=None, node_type=Node, world_size=1):
         self.world_size = world_size
@@ -201,32 +200,6 @@ class DistributedMultiset(Multiset):
         self.to_add = counter_reduce(self.to_add,self.world_size)
         self.to_remove = counter_reduce(self.to_remove,self.world_size)
         super()._commit()
-
-class CounterLite(dict):
-        def __init__(self, iterable=None):
-            super().__init__()
-            self.update(iterable)
-
-        def update(self, iterable=None):
-            if iterable is not None:
-                self_get = self.get
-                for elem in iterable:
-                    self[elem] = self_get(elem, 0) + 1
-
-        def __add__(self, other):
-            assert isinstance(other, CounterLite)
-            result = CounterLite()
-            for elem, count in self.items():
-                newcount = count + other[elem]
-                if newcount > 0:
-                    result[elem] = newcount
-            for elem, count in other.items():
-                if elem not in self and count > 0:
-                    result[elem] = count
-            return result
-        
-        def __reduce__(self):
-            return self.__class__, (dict(self),)
 
 def counter_reduce(c, world_size):
     counter_list = [None]*world_size
