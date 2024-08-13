@@ -8,6 +8,7 @@ import heapq
 # Adapted from https://github.com/yanivle/fast_minbpe
 
 class IndexedList:
+    __slots__ = 'index', 'start'
     class Node:
         __slots__ = 'val', 'prev', 'next'
         def __init__(self, val, prev, next):
