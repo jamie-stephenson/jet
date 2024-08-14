@@ -7,7 +7,7 @@ import torch.distributed as dist
 from torch.distributed.algorithms.join import Join
 import wandb
 
-import time
+from time import time
 
 
 def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
@@ -27,8 +27,8 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
 
     batch = 0
     eff_batch = 0
-
-    start_time = time.time()
+    tokens_per_log = args.batch_size*args.grad_accumulation_steps*args.seq_len*args.world_size*args.eff_batch_per_log
+    t0 = t_log = time()
 
     with dist_cm:
         for epoch in range(args.epochs):
@@ -37,6 +37,7 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
                 if args.no_wandb:
                     print("-"*40)
                     print(f"Epoch {epoch}")
+                    print("-"*40)
                 else:
                     wandb.log({"Epoch": epoch})
                                 
@@ -59,20 +60,20 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
 
                     # -----------VALIDATION-&-LOGGING--------------   
                 
-                    if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0:
-                        current_time = int(time.time()) - int(start_time) 
+                    if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0: 
+                        t1 = time()
+                        dt = t1-t_log
+                        t_log = t1
+                                            
                         if args.no_wandb:
-                            print("-"*40)
-                            print(f"Effective Batch {eff_batch:.0f}")
-                            print("-"*40)
-                            print(f"Training has been executing for {current_time} seconds.")
-                            print(f"Current training loss is: {loss:.2f}")
+                            print(f"eff batch {eff_batch:.0f} | loss: {loss.item():.2f} | dt: {dt*1000:.2f}ms | tok/s: {tokens_per_log/dt:.2f}")
                         else:
                             wandb.log({
                                 "Train Loss": loss.item(),
                                 "Learning Rate": optimizer.param_groups[0]['lr'],
-                                "Time": current_time,
-                                "Effective Batch Number": eff_batch
+                                "Time": t1 - t0,
+                                "Effective Batch Number": eff_batch,
+                                "Tokens per Second": tokens_per_log/dt
                             })
                         
 

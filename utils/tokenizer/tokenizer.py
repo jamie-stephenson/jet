@@ -50,8 +50,7 @@ class Tokenizer:
         print(f"Rank {self.rank} ready to train.")
         dist.barrier()
         if self.rank == 0:
-            t0 = time() 
-            t_log = t0  
+            t0 = t_log = time()   
             print("\nTraining tokenizer...")
 
         blocks_str = self._regex_split('\n'.join(self.corpus['text']))
