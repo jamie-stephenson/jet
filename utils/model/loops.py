@@ -147,7 +147,9 @@ def generate(model,tokenizer,string,temp,device='cpu'):
         x = torch.tensor(tokenizer.encode(string)[-seq_len:]).view(1,-1).to(device) # (1,seq_len)
         for _ in range(20): #TODO Implement special tokens so this doesn't need an arbitrary limit.    
             prob = F.softmax(model.module.forward(x)[0, -1] / temp,dim=0) # (vocab_size,)
-            next_token = torch.multinomial(prob, 1).view(1,-1) # (1,1)
+            topk_prob, topk_tokens = torch.topk(prob, 50, dim=-1)
+            next_idx = torch.multinomial(topk_prob, 1).view(1,-1) # (1,1)
+            next_token = topk_tokens[next_idx]
             x = torch.cat((x, next_token),dim=1)[:,-seq_len:] # (1,seq_len)
             output.append(next_token.item())
 
