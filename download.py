@@ -1,19 +1,13 @@
 from utils.files import PathFetcher
+from project_datasets import download_dataset
 
 import argparse
-import importlib
 import os
 
 def main(args):
     
     paths = PathFetcher(args)
-
     download_dataset(args.corpus, paths.corpus, args.nproc)
-
-def download_dataset(name,path,nproc):
-        
-    dataset_module = importlib.import_module("project_datasets." + name, package=".")
-    dataset_module.download_dataset(path,nproc)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
