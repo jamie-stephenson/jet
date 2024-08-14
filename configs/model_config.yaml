@@ -19,4 +19,5 @@ weight_decay: 0.0001
 eff_batch_per_log: 100
 seed: 90
 num_workers: 2
+autocast: True
 

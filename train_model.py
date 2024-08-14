@@ -180,7 +180,13 @@ def get_parser():
         "--device",
         default=f"cuda:{os.getenv('LOCAL_RANK','0')}" if torch.cuda.is_available() else "cpu",
         type=str,
-        help="Device on which experiments are to be ran."
+        help="Device on which training will occur."
+    )
+
+    parser.add_argument(
+        "--autocast",
+        action="store_true",
+        help="Whether to use bfloat16 autocast."
     )
 
     parser.add_argument(
@@ -245,9 +251,11 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     if 'cuda' in args.device:
+        args.device_type = 'cuda'
         args.device_id = [int(os.getenv('LOCAL_RANK','0'))]
         backend = 'nccl'  
     else:
+        args.device_type = 'cpu'
         args.device_id = None
         backend = 'gloo'
 

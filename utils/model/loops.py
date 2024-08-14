@@ -48,9 +48,9 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
                 if args.world_size > 1:
                     model.require_backward_grad_sync = (batch%args.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
 
-                logits = model(x)
-
-                loss = F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+                with torch.autocast(args.device_type,torch.bfloat16,enabled=args.autocast):
+                    logits = model(x)
+                    loss = F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
                 
                 loss.backward()
 
@@ -118,9 +118,10 @@ def evaluate(model, loader, args):
 
             x, y = x.to(args.device), y.to(args.device)
 
-            logits = model.module.forward(x) # No direct call to avoid join hooks
-
-            loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+            with torch.autocast(args.device_type,torch.bfloat16,enabled=args.autocast):
+                logits = model.module.forward(x) # No direct call to avoid join hooks
+                loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+            
             nsamples += 1
 
         dist.all_reduce(loss_sum)
