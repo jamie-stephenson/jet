@@ -185,7 +185,7 @@ def get_parser():
 
     parser.add_argument(
         "--autocast",
-        action="store_true",
+        default=torch.cuda.get_device_properties(0).major >= 8,
         help="Whether to use bfloat16 autocast."
     )
 
