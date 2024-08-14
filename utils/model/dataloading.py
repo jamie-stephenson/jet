@@ -89,7 +89,7 @@ def seed_worker(worker_id):
 
 def get_dataloader(path,split,args):     
 
-    paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard and 'mmap' not in shard]
+    paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
     dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
     dataloader = DataLoader(
                     dataset=dataset, 

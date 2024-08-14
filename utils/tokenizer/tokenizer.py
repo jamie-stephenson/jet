@@ -64,9 +64,6 @@ class Tokenizer:
 
         if self.rank == 0: 
             print(f"Initialising data structures took {time()-t0}.")
-
-        del blocks_str, blocks_utf8
-
         while self.current_vocab_size < self.max_vocab_size:
             
             if self.rank == 0:
