@@ -62,6 +62,8 @@ class Tokenizer:
             world_size=self.world_size
         )
 
+        del blocks_str, blocks_utf8
+
         if self.rank == 0: 
             print(f"Initialising data structures took {time()-t0}.")
         while self.current_vocab_size < self.max_vocab_size:
@@ -120,7 +122,7 @@ class Tokenizer:
     def encode(self, text: str) -> List[int]:
         indexed_list = IndexedList(text.encode('utf-8'))
         for bp, token in self.merges:
-            for node in indexed_list.index[bp]:
+            for node in indexed_list.index.get(bp,[]):
                 if node.val != bp[0] or node.next is None or node.next.val != bp[1]:
                     continue  # The index was stale - continue.
                 node.next.delete() 
