@@ -133,19 +133,6 @@ class Multiset:
         self._commit()
         return self.l[0].val
 
-    def top_k(self, k: int) -> list[tuple[Any, int]]:
-        self._commit()
-        totup = lambda n: (-n.key, n.val, n.count, n.pos)
-        res, heap = [], [totup(self.l[0])]
-        for _ in range(k):
-            if not heap: break
-            _key, val, count, pos = heapq.heappop(heap)
-            res.append((val, count))
-            for child_pos in [pos * 2 + 1, pos * 2 + 2]:
-                if child_pos < len(self.l):
-                    heapq.heappush(heap, totup(self.l[child_pos]))
-        return res
-
     def __bool__(self):
         self._commit()
         return bool(self.l)

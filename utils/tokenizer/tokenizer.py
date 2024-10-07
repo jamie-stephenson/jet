@@ -1,4 +1,5 @@
-from .datastructures import DistributedMultiset, IndexedBlocks, IndexedList
+from .datastructures import IndexedList
+from .bpe import bpe
 
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -40,81 +41,17 @@ class Tokenizer:
 
         return tokenizer
     
-    #--------------------TRAINING-METHODS---------------------
-
-    def __train(self, vocab_size):
+    def __train(self, vocab_size: int):
         """This method is only supposed to be accessed by the `from_corpus` factory method."""
-        self.current_vocab_size = 256
-        self.max_vocab_size = vocab_size
 
         print(f"Rank {self.rank} ready to train.")
         dist.barrier()
-        if self.rank == 0:
-            t0 = t_log = time()   
-            print("\nTraining tokenizer...")
 
-        blocks_str = self._regex_split('\n'.join(self.corpus['text']))
+        blocks_str = self.regex_split('\n'.join(self.corpus['text']))
         blocks_utf8 = [block_str.encode('utf-8') for block_str in blocks_str]
-        self.blocks = IndexedBlocks(blocks_utf8)
-        self.bp_counts = DistributedMultiset(
-            chain(*[pairwise(block) for block in blocks_utf8]),
-            world_size=self.world_size
-        )
+        
+        self.merges, self.blocks = bpe(blocks_utf8,vocab_size,self.rank,self.world_size) 
 
-        del blocks_str, blocks_utf8
-
-        if self.rank == 0: 
-            print(f"Initialising data structures took {time()-t0}.")
-        while self.current_vocab_size < self.max_vocab_size:
-            
-            if self.rank == 0:
-                len_comms = len(self.bp_counts.to_add)+len(self.bp_counts.to_remove)
-            
-            pair_to_merge = self.bp_counts.most_common
-
-            if self.rank == 0:
-                self.merges.append((pair_to_merge,self.current_vocab_size))
-
-                count = self.bp_counts.l[0].count
-                print(f"New bytepair merge {pair_to_merge} -> {self.current_vocab_size}"+ 
-                  f" with count {count}.")
-                
-                if wandb.run is not None:                    
-                    wandb.log({
-                        "Total Time": time()-t0,
-                        "Iter Time": time()-t_log,
-                        "Merged bytepair count": count,
-                        "Length bp_counts": len(self.bp_counts.l),
-                        "Length rank 0 comms (to_add + to_remove)": len_comms                        
-                    })
-                    t_log = time()
-
-            self._merge_and_update_bp_counts(pair_to_merge)
-            self.current_vocab_size += 1
-
-        if self.rank == 0:
-            print(f"\nTraining completed in {time()-t0:.2f} seconds.")
-    
-    def _merge_and_update_bp_counts(self, bytepair):
-        for node in self.blocks.index.get(bytepair,[]):
-            if node.val != bytepair[0] or node.next is None or node.next.val != bytepair[1]:
-                continue  # The index was stale - continue.
-            # Say we're merging "bc" to "X" in "abcd", and the node we're visiting now is "b".
-            self.bp_counts.remove(bytepair) # Remove "bc".
-            if node.next.next is not None:
-                self.bp_counts.remove((node.next.val, node.next.next.val))  # Remove "cd".
-                self.bp_counts.add((self.current_vocab_size, node.next.next.val))  # Add "Xd".
-            if node.prev is not None:
-                self.bp_counts.remove((node.prev.val, bytepair[0]))  # Remove "ab".
-                self.bp_counts.add((node.prev.val, self.current_vocab_size))  # Add "aX".
-            node.next.delete()  # Delete "c", we now have "abd".
-            node.val = self.current_vocab_size  # Update "b" to "X", we now have "aXd".
-            self.blocks.update_index(node)  # Add "aX" and "Xd" to the index.    
-    
-    def _regex_split(self, string):
-        return re.findall(self.pattern, string)
-    
-    #------------------END-OF-TRAINING-METHODS---------------------
 
     #----------------------ENCODING-METHODS------------------------
 
@@ -254,3 +191,6 @@ class Tokenizer:
         return file_contents
     
     #-----------------END-OF-SAVING/LOADING-METHODS------------------
+
+    def regex_split(self, string):
+        return re.findall(self.pattern, string)
