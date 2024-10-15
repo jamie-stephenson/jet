@@ -9,6 +9,7 @@ import yaml
 def download_dataset(
         hf_path: str,
         save_path: str,
+        cache_dir: str,
         name: str | None = None,
         split: str | None = 'train',
         num_proc: int | None = os.cpu_count(),
@@ -20,6 +21,7 @@ def download_dataset(
         path=hf_path,
         name=name,
         split=split,
+        cache_dir=cache_dir,
         num_proc=num_proc
     )
     
