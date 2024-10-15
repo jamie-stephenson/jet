@@ -1,0 +1,3 @@
+hf_path: HuggingFaceFW/fineweb-edu
+name: sample-10BT
+shard_size: 1e8

@@ -1,13 +1,14 @@
 # Use this file to configure the directory structure of any input and output from 
-# `download.py`, `train_tokenizer.py`, `encode.py` and `train_model.py`.
+# `download.py`, `encode.py` and `train_model.py`.
 # See `utils.files.PathFetcher` for the implementation of these templates. 
-# Any arg parsed by the python script's arg parser can be use in your template configuration, as well as the current time.
+# Any arg parsed by the python script's arg parser can be use in your template configuration, as well as the current `time`.
 
-model: './runs/{name}_{time}/model.pt'
-config: './runs/{name}_{time}/config.yaml'
-corpus: './data/{corpus}/raw/'
-tokenizer_corpus: './data/{tokenizer_corpus}/raw/'
-encoded_corpus: './data/{corpus}/{corpus}_{tokenizer_corpus}_{vocab_size}'
-encoded_tokenizer_corpus: './data/{tokenizer_corpus}/{tokenizer_corpus}_{tokenizer_corpus}_{vocab_size}'
-tokenizer: './tokenizers/{tokenizer_corpus}_{vocab_size}.pkl'
+dataset: './data/{dataset}/raw/'
+dataset_config: './configs/project_datasets/{dataset}.yaml'
+tokenizer_dataset: './data/{tokenizer_dataset}/raw/'
+tokenizer: './tokenizers/{tokenizer_dataset}_{vocab_size}.pkl'
+tokenizer_tokens: './data/{tokenizer_dataset}/{tokenizer_dataset}_{tokenizer_dataset}_{vocab_size}'
+tokens: './data/{dataset}/{dataset}_{tokenizer_dataset}_{vocab_size}'
+model: './models/{name}_{time}/model.pt'
+model_config: './models/{name}_{time}/config.yaml'
 wandb: '{name}_{time}'

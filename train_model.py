@@ -1,6 +1,6 @@
 from jet import get_model
 from utils.model import train, get_dataloader, get_optimizer, get_lr_scheduler
-from utils.tokenizer import Tokenizer
+from bpetokenizer.utils import Tokenizer
 from utils.dist import setup, cleanup
 from utils.files import PathFetcher, args_from_config_file 
 
@@ -23,17 +23,22 @@ def main(args):
 
     tokenizer = Tokenizer.from_pickled_merges(paths.tokenizer) # Only used for sample output generation during training
     model = get_model(args)
-    train_dataloader = get_dataloader(paths.encoded_corpus, 'train', args)
-    eval_dataloader = get_dataloader(paths.encoded_corpus, 'val', args)
+    train_dataloader = get_dataloader(paths.tokens, 'train', args)
+    eval_dataloader = get_dataloader(paths.tokens, 'val', args)
     optimizer = get_optimizer(args.optimizer, model, args)
-    lr_scheduler = get_lr_scheduler(args.lr_schedule, optimizer, len(train_dataloader)//args.grad_accumulation_steps, args)
+    lr_scheduler = get_lr_scheduler(
+        args.lr_schedule, 
+        optimizer, 
+        steps_per_epoch=len(train_dataloader)//args.grad_accumulation_steps, 
+        args=args
+    )
     
     model = train(model,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args)
 
     if args.rank == 0:
         os.makedirs(os.path.dirname(paths.model))
         torch.save(model.state_dict(),paths.model)
-        with open(paths.config,'w') as file:
+        with open(paths.model_config,'w') as file:
             yaml.dump(vars(args), file)
 
 def get_parser():
@@ -48,15 +53,15 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--corpus",
+        "--dataset",
         type=str,
-        help="The text dataset to train jet with."
+        help="The text dataset to train with."
     )
 
     parser.add_argument(
-        "--tokenizer_corpus",
+        "--tokenizer_dataset",
         type=str,
-        help="Name of corpus used to train tokenizer that encoded `corpus`."
+        help="Name of dataset used to train tokenizer that encoded `corpus`."
     )
 
     parser.add_argument(

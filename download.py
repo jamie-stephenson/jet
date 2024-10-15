@@ -1,30 +1,46 @@
 from utils.files import PathFetcher
-from project_datasets import download_dataset
+
+from datasets import load_dataset
 
 import argparse
 import os
+import yaml
 
-def main(args):
+def download_dataset(
+        hf_path: str,
+        save_path: str,
+        name: str | None = None,
+        split: str | None = 'train',
+        num_proc: int | None = os.cpu_count(),
+        **kwargs
+    ):
+    """Download a Hugging Face dataset, save it to disk and remove the cached files"""
     
-    paths = PathFetcher(args)
-    download_dataset(args.corpus, paths.corpus, args.nproc)
+    dataset = load_dataset(
+        path=hf_path,
+        name=name,
+        split=split,
+        num_proc=num_proc
+    )
+    
+    dataset.save_to_disk(save_path)
+    dataset.cleanup_cache_files()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--corpus",
+        "--dataset",
         type=str,
-        help="Name of dataset."
-    )
-
-    parser.add_argument(
-        "--nproc",
-        default=os.cpu_count(),
-        type=int,
-        help="Number of processes to use for downloading."
+        help="Name of dataset (as found in the `configs/project_datasets/` directory)."
     )
 
     args = parser.parse_args()
 
-    main(args)
+    paths = PathFetcher(args)
+
+    with open(paths.dataset_config,'r') as file:
+        yaml_config = yaml.safe_load(file)
+
+    download_dataset(save_path=paths.dataset,**yaml_config)

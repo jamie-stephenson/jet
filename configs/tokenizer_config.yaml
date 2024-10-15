@@ -1,3 +1,0 @@
-corpus: fineweb_edu
-tokenizer_corpus: fineweb_100k
-vocab_size: 8192

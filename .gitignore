@@ -1,12 +1,10 @@
 .ipynb_checkpoints
 __pycache__
 data
-test.ipynb
-runs
+models
 tokenizers
-*minbpe
 .vscode
 wandb
 logs
 test*
-dataset_test.py
+venv
