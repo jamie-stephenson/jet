@@ -98,7 +98,7 @@ sudo systemctl start slurmctld
 #---------------------
 
 #----GNU PARALLEL-----
-sudo apt-get -o DPkg::Lock::Timeout=20 -y install parallel
+sudo apt-get -o DPkg::Lock::Timeout=60 -y install parallel
 #---------------------
 
 #--BUILD WORKERS--
@@ -118,8 +118,14 @@ run_on_node() {
         fi
         ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- $mount_args" < $mount_script > $output_file 2>&1
         ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- ${args[@]@Q}" < $worker_script > $output_file 2>&1
-    else
+    else        
+        #-----PYTHON ENV------
         source $python_env_script $torch_index $mount_dir
+        #---------------------
+        
+        #------OPEN MPI-------
+        sudo apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
+        #---------------------
     fi
 }
 

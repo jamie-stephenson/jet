@@ -32,3 +32,7 @@ sudo systemctl start slurmd
 #-----PYTHON ENV------
 source $python_env_script $torch_index $mount_dir
 #---------------------
+
+#------OPEN MPI-------
+sudo apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
+#---------------------
