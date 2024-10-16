@@ -124,7 +124,7 @@ run_on_node() {
         #---------------------
         
         #------OPEN MPI-------
-        sudo apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
+        sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
         #---------------------
     fi
 }
