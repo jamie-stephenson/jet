@@ -15,13 +15,9 @@ python_env_script=$mount_dir/jet/infra/scripts/python_env.sh
 #---------------------
 
 #-----MOUNT DRIVE----- TODO: support more fs types
-mount_script=~/jet/infra/scripts/mounts/mount_$fs_type.sh 
-if [ $fs_type = 'cifs' ]; then
-    mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
-    source $mount_script $mount_args
-elif [ $fs_type = 'none' ]; then
-    mount_args="$mount_dir"
-fi
+mount_script=~/jet/infra/scripts/mounts/$fs_type.sh 
+mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
+source $mount_script $mount_args
 #---------------------
 
 #-----CLONE REPO------
