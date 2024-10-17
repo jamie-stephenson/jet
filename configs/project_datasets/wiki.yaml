@@ -1,3 +1,4 @@
 hf_path: wikimedia/wikipedia
 name: 20231101.ab
+cache_dir: ~/shared/.cache/
 
