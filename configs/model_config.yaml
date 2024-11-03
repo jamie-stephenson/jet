@@ -1,9 +1,8 @@
 name: jet
 batch_size: 16
 grad_accumulation_steps: 1
-dataset: ipl_commentary
-tokenizer_dataset: ipl_commentary
-device: cpu
+tokens: tokens/
+tokenizer: tokenizers/16384.pkl
 d_model: 16
 d_mlp: 32
 lr_max: 0.01
@@ -19,4 +18,5 @@ weight_decay: 0.0001
 eff_batch_per_log: 100
 seed: 90
 n_workers: 2
+log_per_val: -1
 

@@ -1,9 +1,9 @@
 from jet import get_model
 from utils.model import train, get_dataloader, get_optimizer, get_lr_scheduler
-from bpetokenizer.utils import Tokenizer
 from utils.dist import setup, cleanup
 from utils.files import PathFetcher, args_from_config_file 
 
+from bpekit.core import Tokenizer
 import torch
 import torch.distributed as dist
 import wandb
@@ -11,6 +11,7 @@ import wandb
 import argparse
 import os
 import yaml
+from pathlib import Path
 
 
 def main(args):
@@ -53,20 +54,15 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--dataset",
-        type=str,
-        help="The text dataset to train with."
+        "--tokens",
+        type=Path,
+        help="The path to the tokenized dataset."
     )
 
     parser.add_argument(
-        "--tokenizer_dataset",
-        type=str,
-        help="Name of dataset used to train tokenizer that encoded `corpus`."
-    )
-
-    parser.add_argument(
-        "--vocab_size",
-        type=int,
+        "--tokenizer",
+        type=Path,
+        help="The path to the tokenzier merges."
     )
 
     parser.add_argument(
@@ -100,7 +96,7 @@ def get_parser():
     parser.add_argument(
         "--lr_schedule",
         type=str,
-        default="exponential",
+        default="onecycle",
         help="The learning rate schedule used for training."
     )
 
@@ -266,6 +262,7 @@ if __name__ == '__main__':
 
     setup(backend) 
     args.rank, args.world_size = dist.get_rank(), dist.get_world_size() 
+    print(backend,args.rank)
     
     main(args)
 

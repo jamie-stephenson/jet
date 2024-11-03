@@ -5,10 +5,8 @@
 
 dataset: './data/{dataset}/raw/'
 dataset_config: './configs/project_datasets/{dataset}.yaml'
-tokenizer_dataset: './data/{tokenizer_dataset}/raw/'
-tokenizer: './tokenizers/{tokenizer_dataset}_{vocab_size}.pkl'
-tokenizer_tokens: './data/{tokenizer_dataset}/{tokenizer_dataset}_{tokenizer_dataset}_{vocab_size}'
-tokens: './data/{dataset}/{dataset}_{tokenizer_dataset}_{vocab_size}'
 model: './models/{name}_{time}/model.pt'
+tokenizer: '{tokenizer}'
+tokens: '{tokens}'
 model_config: './models/{name}_{time}/config.yaml'
 wandb: '{name}_{time}'
