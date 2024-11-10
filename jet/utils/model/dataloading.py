@@ -18,7 +18,6 @@ class ShardedDataset(IterableDataset):
 
         self.rank = rank
         self.world_size = world_size 
-
         self.shard_paths = shard_paths
         self.nshards = len(shard_paths)
 
@@ -77,7 +76,7 @@ def seed_worker(worker_id):
     2) A local source of rng that is the same for all workers on a given rank but different for different ranks.
     """
     worker_info = torch.utils.data.get_worker_info()
-    dataset =  worker_info.dataset
+    dataset = worker_info.dataset
     dataset.worker_id = worker_id
     dataset.num_workers = worker_info.num_workers
 
@@ -90,6 +89,7 @@ def seed_worker(worker_id):
 def get_dataloader(path,split,args):     
 
     paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
+    print(paths)
     dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
     dataloader = DataLoader(
                     dataset=dataset, 

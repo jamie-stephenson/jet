@@ -1,22 +1,25 @@
-name: jet
+# -----MODEL-----
 batch_size: 16
-grad_accumulation_steps: 1
-tokens: tokens/
-tokenizer: tokenizers/16384.pkl
-d_model: 16
 d_mlp: 32
+d_model: 16
+device: cpu
+eff_batch_per_log: 100
+epochs: 1
+grad_accumulation_steps: 1
+log_per_val: -1
 lr_max: 0.01
 lr_schedule: onecycle
 mask_type: causal
-epochs: 1
 n_blocks: 4
-n_heads: 8
 n_ctx: 16
+n_heads: 8
+name: jet
 overlap: 4
-vocab_size: 2048
-weight_decay: 0.0001
-eff_batch_per_log: 100
 seed: 90
-n_workers: 2
-log_per_val: -1
+weight_decay: 0.0001
 
+# -----TOKENIZER-----
+vocab_size: 2048
+
+# -----DATASET-----
+dataset: fineweb-edu

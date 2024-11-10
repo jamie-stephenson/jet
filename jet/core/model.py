@@ -14,7 +14,7 @@ class EmbeddingLayer(nn.Module):
         self.device = config.device
 
     def forward(self, x):
-        B, T = x.shape
+        _, T = x.shape
         tok_embed = self.token_embedding(x) #(B,T,C)
         pos_embed = self.positional_embedding(torch.arange(T,device=self.device)) #(T,C)
         x = self.dropout(tok_embed + pos_embed)
@@ -43,10 +43,10 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x):
         B,T,C = x.shape #B,T,C = batch size,`n_ctx`,`d_model`
 
-        q, k, v = self.qkv_linear_layer(x).chunk(3,dim=-1) #(B,T,3C) -> 3 lots of (B,T,C)
-        q = q.view(B,T,self.n_heads,-1).transpose(1,2)   #(B,T,C) -> (B,nh,T,C/nh)
-        k = k.view(B,T,self.n_heads,-1).transpose(1,2)   #(B,T,C) -> (B,nh,T,C/nh)  
-        v = v.view(B,T,self.n_heads,-1).transpose(1,2)   #(B,T,C) -> (B,nh,T,C/nh)  
+        q, k, v = self.qkv_linear_layer(x).chunk(3,dim=-1)  #(B,T,3C) -> 3 lots of (B,T,C)
+        q = q.view(B,T,self.n_heads,-1).transpose(1,2)      #(B,T,C) -> (B,nh,T,C/nh)
+        k = k.view(B,T,self.n_heads,-1).transpose(1,2)      #(B,T,C) -> (B,nh,T,C/nh)  
+        v = v.view(B,T,self.n_heads,-1).transpose(1,2)      #(B,T,C) -> (B,nh,T,C/nh)  
 
         attention_pattern = q @ k.transpose(-2,-1) / sqrt(C/self.n_heads)  #(B,nh,T,C/nh)*(B,nh,C/nh,T) -> (B,nh,T,T)
         attention_pattern = attention_pattern.masked_fill(self.mask[:,:,:T,:T]==0,-torch.inf)

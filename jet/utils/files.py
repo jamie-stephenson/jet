@@ -7,7 +7,7 @@ class PathFetcher:
     Generates paths used in `train.py` and `download.py` based on the templates in the given path config yaml file.
     """
 
-    def __init__(self, args, config_path: str = './configs/path_config.yaml'):
+    def __init__(self, args, config_path: str):
         with open(config_path, 'r') as yaml_file:
             templates = yaml.safe_load(yaml_file)
         self.templates = templates

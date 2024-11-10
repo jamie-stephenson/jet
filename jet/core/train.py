@@ -1,9 +1,9 @@
-from jet import get_model
-from utils.model import train, get_dataloader, get_optimizer, get_lr_scheduler
-from utils.dist import setup, cleanup
-from utils.files import PathFetcher, args_from_config_file 
+from jet.core.model import get_model
+from jet.utils.model import train, get_dataloader, get_optimizer, get_lr_scheduler
+from jet.utils.dist import setup, cleanup
+from jet.utils.files import PathFetcher, args_from_config_file 
 
-from bpekit.core import Tokenizer
+from bpekit import Tokenizer
 import torch
 import torch.distributed as dist
 import wandb
@@ -14,9 +14,9 @@ import yaml
 from pathlib import Path
 
 
-def main(args):
+def train_model(args):
 
-    paths = PathFetcher(args)
+    paths = PathFetcher(args,'./configs/path_config.yaml')
 
     if not args.no_wandb and args.rank == 0:
         wandb.init(project='jet',name=paths.wandb,config=args)
@@ -186,7 +186,7 @@ def get_parser():
 
     parser.add_argument(
         "--autocast",
-        default=torch.cuda.get_device_properties(0).major >= 8,
+        default= torch.cuda.is_available() and torch.cuda.get_device_properties(0).major >= 8,
         help="Whether to use bfloat16 autocast."
     )
 
@@ -262,7 +262,6 @@ if __name__ == '__main__':
 
     setup(backend) 
     args.rank, args.world_size = dist.get_rank(), dist.get_world_size() 
-    print(backend,args.rank)
     
     main(args)
 

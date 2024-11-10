@@ -2,8 +2,7 @@
 #SBATCH --job-name=train_tokenizer
 #SBATCH --partition=workers
 #SBATCH --nodes=
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=
+#SBATCH --ntasks-per-node=
 #SBATCH --time=
 #SBATCH --output=./slurmlogs/%j_train_tokenizer.log
 

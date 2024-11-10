@@ -1,12 +1,36 @@
+# ------PATHS------
 # Use this file to configure the directory structure of any input and output from 
-# `download.py`, `encode.py` and `train_model.py`.
+# `data_prep.py`, and `train.py`.
 # See `utils.files.PathFetcher` for the implementation of these templates. 
 # Any arg parsed by the python script's arg parser can be use in your template configuration, as well as the current `time`.
 
-dataset: './data/{dataset}/raw/'
-dataset_config: './configs/project_datasets/{dataset}.yaml'
-model: './models/{name}_{time}/model.pt'
-tokenizer: '{tokenizer}'
-tokens: '{tokens}'
+# -----DATASET-----
+# data_prep.py will create, and download data to, this directory.
+# save any .txt file dataset in a directory with this path. 
+dataset: 'data/{dataset}/raw/'
+# data_prep.py will create, save the encoded dataset to, this directory.
+tokens: 'data/{dataset}/tokens/'
+# -----------------
+
+# -----DATASET CONFIG-----
+# download.py takes a dataset name as its only argument
+# it uses this name to look up required info from the 
+# user defined dataset config file at this path.
+dataset_config: 'configs/project_datasets/{dataset}.yaml'
+# ------------------------
+
+# -----MODEL-----
+# trained models are saved to this path
+model: 'models/{name}_{time}/model.pt'
 model_config: './models/{name}_{time}/config.yaml'
+# ---------------
+
+# -----TOKENIZER-----
+# Any tokenizer trained will have its merges saved here  
+tokenizer: 'tokenizers/{dataset}_{vocab_size}.pkl'
+# -------------------
+
+# -----WANDB-----
+# Any wandb runs will have this name.
 wandb: '{name}_{time}'
+# ---------------
