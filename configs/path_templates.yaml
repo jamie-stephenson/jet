@@ -1,8 +1,11 @@
 # ------PATHS------
 # Use this file to configure the directory structure of any input and output from 
-# `data_prep.py`, and `train.py`.
-# See `utils.files.PathFetcher` for the implementation of these templates. 
-# Any arg parsed by the python script's arg parser can be use in your template configuration, as well as the current `time`.
+# `dataprep.py`, and `train.py`.
+# See `utils.config.Config.get_paths` for the implementation of these templates. 
+# Any attribute of the `Config` object can be used in a template. These include:
+# - Attributes set in the config file that Config is built from
+# - Attributes that are set using command line arguments 
+# - The current `time`
 
 # -----DATASET-----
 # data_prep.py will create, and download data to, this directory.

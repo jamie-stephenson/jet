@@ -1,25 +1,53 @@
 # -----MODEL-----
-batch_size: 16
 d_mlp: 32
 d_model: 16
-device: cpu
-eff_batch_per_log: 100
-epochs: 1
-grad_accumulation_steps: 1
-log_per_val: -1
-lr_max: 0.01
-lr_schedule: onecycle
 mask_type: causal
 n_blocks: 4
 n_ctx: 16
 n_heads: 8
 name: jet
-overlap: 4
-seed: 90
-weight_decay: 0.0001
+seed: 91
 
 # -----TOKENIZER-----
 vocab_size: 2048
 
+# -----TRAINING-----
+batch_size: 16
+epochs: 1
+grad_accumulation_steps: 1
+dropout: 0.2
+
 # -----DATASET-----
 dataset: fineweb-edu
+overlap: 4
+n_workers: 2
+
+# -----RESOURCES-----
+cuda: False
+autocast: False
+
+# -----OPTIMIZER-----
+optimizer:
+  name: adamw
+  params:
+    weight_decay: 0.0001
+    momentum: 0
+
+# -----LR Schedule-----
+lr_schedule:
+  name: onecycle
+  params:
+    lr_max: 0.01
+    lr_warmup_end: 0.4 # number of epochs to warm up lr for
+
+# -----VALIDATION-----
+log_per_val: -1
+temp: 1
+val_prompt: Hello, my name is Jet. J.E.T. stands for
+
+# -----LOGGING-----
+no_wandb: True
+eff_batch_per_log: 100
+
+# -----PATH TEMPLATES-----
+templates: configs/path_templates.yaml

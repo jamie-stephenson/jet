@@ -6,12 +6,20 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from math import sqrt
 
 class EmbeddingLayer(nn.Module):
-    def __init__(self,config):
+    def __init__(
+        self,
+        vocab_size: int,
+        n_ctx: int,
+        d_model: int,
+        device: str,
+        dropout: float
+    ):
+
         super().__init__()
-        self.token_embedding =  nn.Embedding(config.vocab_size,config.d_model)  #(B,T) -> (B,T,C)
-        self.positional_embedding = nn.Embedding(config.n_ctx,config.d_model) #(T) -> (T,C)
-        self.dropout = nn.Dropout(config.dropout)
-        self.device = config.device
+        self.token_embedding =  nn.Embedding(vocab_size,d_model)  #(B,T) -> (B,T,C)
+        self.positional_embedding = nn.Embedding(n_ctx,d_model) #(T) -> (T,C)
+        self.dropout = nn.Dropout(dropout)
+        self.device = device
 
     def forward(self, x):
         _, T = x.shape
@@ -21,23 +29,31 @@ class EmbeddingLayer(nn.Module):
         return x
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, config):
+    def __init__(
+        self, 
+        n_ctx: int,
+        d_model: int,
+        n_heads: int,
+        device: str,
+        dropout: float,
+        mask_type: str
+    ):
         super().__init__()
-        assert config.d_model % config.n_heads == 0, "d_model must be divisible by n_heads"
-        self.qkv_linear_layer = nn.Linear(config.d_model,3*config.d_model,bias=False,device=config.device) #(B,T,C) -> (B,T,3C)
-        self.out_linear_layer = nn.Linear(config.d_model,config.d_model) #(B,T,C) -> (B,T,C)
-        self.attn_dropout = nn.Dropout(config.dropout)
-        self.resid_dropout = nn.Dropout(config.dropout)
-        self.n_heads = config.n_heads
-        if config.mask_type == 'causal':
+        assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
+        self.qkv_linear_layer = nn.Linear(d_model,3*d_model,bias=False,device=device) #(B,T,C) -> (B,T,3C)
+        self.out_linear_layer = nn.Linear(d_model,d_model) #(B,T,C) -> (B,T,C)
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
+        self.n_heads = n_heads
+        if mask_type == 'causal':
             self.register_buffer(
                 "mask",
-                torch.tril(torch.ones(config.n_ctx,config.n_ctx)).view(1,1,config.n_ctx,config.n_ctx)
+                torch.tril(torch.ones(n_ctx,n_ctx)).view(1,1,n_ctx,n_ctx)
             )
         else:
             self.register_buffer(
                 "mask",
-                torch.ones(config.n_ctx,config.n_ctx).view(1,1,config.n_ctx,config.n_ctx)
+                torch.ones(n_ctx,n_ctx).view(1,1,n_ctx,n_ctx)
             )
 
     def forward(self, x):
@@ -58,11 +74,16 @@ class MultiHeadAttention(nn.Module):
         return  output 
         
 class MLP(nn.Module):
-    def __init__(self, config):
+    def __init__(
+        self, 
+        d_model: int,
+        d_mlp: int,
+        dropout: float,
+    ):
         super().__init__()
-        self.layer_1 = nn.Linear(config.d_model, config.d_model * config.d_mlp)
-        self.layer_2 = nn.Linear(config.d_model * config.d_mlp, config.d_model)
-        self.dropout = nn.Dropout(config.dropout)
+        self.layer_1 = nn.Linear(d_model, d_model * d_mlp)
+        self.layer_2 = nn.Linear(d_model * d_mlp, d_model)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.layer_1(x)
@@ -72,26 +93,74 @@ class MLP(nn.Module):
         return x
 
 class TransformerBlock(nn.Module):
-    def __init__(self, config):
+    def __init__(
+        self, 
+        n_ctx: int,
+        d_mlp: int,
+        d_model: int,
+        n_heads: int,
+        device: str,
+        dropout: float,
+        mask_type: str
+    ):
         super().__init__()
-        self.layernorm_1 = nn.LayerNorm(config.d_model)
-        self.attention = MultiHeadAttention(config)
-        self.layernorm_2 = nn.LayerNorm(config.d_model)
-        self.feedforward = MLP(config)
+
+        self.layernorm_1 = nn.LayerNorm(d_model)
+
+        self.attention = MultiHeadAttention(
+            n_ctx,
+            d_model,
+            n_heads,
+            device, 
+            dropout, 
+            mask_type
+        )
+
+        self.layernorm_2 = nn.LayerNorm(d_model)
+
+        self.feedforward = MLP(
+            d_model,
+            d_mlp,
+            dropout
+        )
 
     def forward(self, x):
         x = x + self.attention(self.layernorm_1(x))
         x = x + self.feedforward(self.layernorm_2(x))
         return x
 
-def get_model(config):
+def get_model(cfg):
     #Note: no softmax on last layer, this model outputs logits ready for crossentropy loss.
+    
     model = nn.Sequential(
-        EmbeddingLayer(config),
-        *[TransformerBlock(config) for _ in range(config.n_blocks)],
-        nn.Linear(config.d_model,config.vocab_size)
+
+        EmbeddingLayer(
+            cfg.vocab_size,
+            cfg.n_ctx,
+            cfg.d_model,
+            cfg.device,
+            cfg.dropout
+        ),
+
+        *[
+            TransformerBlock(
+                cfg.n_ctx,
+                cfg.d_mlp,
+                cfg.d_model,
+                cfg.n_heads,
+                cfg.device,
+                cfg.dropout,
+                cfg.mask_type
+            )
+            for _ in range(cfg.n_blocks)
+        ],
+
+        nn.Linear(cfg.d_model,cfg.vocab_size)
+
     )
+
     torch.set_float32_matmul_precision('high')
-    model = torch.compile(DDP(model.to(config.device),config.device_id),mode="reduce-overhead")
+
+    model = torch.compile(DDP(model.to(cfg.device),cfg.device_id),mode="reduce-overhead")
 
     return model

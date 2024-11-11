@@ -10,7 +10,15 @@ import wandb
 from time import time
 
 
-def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_scheduler,args):
+def train(
+    model: DDP,
+    tokenizer,
+    train_dataloader,
+    eval_dataloader,
+    optimizer,
+    lr_scheduler,
+    cfg
+):
 
     model.train()
 
@@ -20,21 +28,21 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
         model.process_group,
         model=model,
         loader=eval_dataloader,
-        args=args
+        cfg=cfg
     )
 
     dist_cm = Join([model,val]) 
 
     batch = 0
     eff_batch = 0
-    tokens_per_log = args.batch_size*args.grad_accumulation_steps*args.seq_len*args.world_size*args.eff_batch_per_log
+    tokens_per_log = cfg.batch_size*cfg.grad_accumulation_steps*cfg.n_ctx*cfg.world_size*cfg.eff_batch_per_log
     t0 = t_log = time()
 
     with dist_cm:
-        for epoch in range(args.epochs):
+        for epoch in range(cfg.epochs):
 
-            if args.rank == 0:
-                if args.no_wandb:
+            if cfg.rank == 0:
+                if cfg.no_wandb:
                     print("-"*40)
                     print(f"Epoch {epoch}")
                     print("-"*40)
@@ -45,27 +53,27 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
 
                 batch += 1
             
-                x, y = x.to(args.device), y.to(args.device)
+                x, y = x.to(cfg.device), y.to(cfg.device)
 
-                if args.world_size > 1:
-                    model.require_backward_grad_sync = (batch%args.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
+                if cfg.world_size > 1:
+                    model.require_backward_grad_sync = (batch%cfg.grad_accumulation_steps == 0) # If true, `loss.backward()` will trigger gradient sync
 
-                with torch.autocast(args.device_type,torch.bfloat16,enabled=args.autocast):
+                with torch.autocast(cfg.device_type,torch.bfloat16,enabled=cfg.autocast):
                     logits = model(x)
-                    loss = F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+                    loss = F.cross_entropy(logits.view(-1,cfg.vocab_size), y.view(-1))
                 
                 loss.backward()
 
-                if batch%args.grad_accumulation_steps == 0: # Only take step when gradients have accumulated
+                if batch%cfg.grad_accumulation_steps == 0: # Only take step when gradients have accumulated
 
                     # -----------VALIDATION-&-LOGGING--------------   
                 
-                    if eff_batch % args.eff_batch_per_log == 0 and args.rank == 0: 
+                    if eff_batch % cfg.eff_batch_per_log == 0 and cfg.rank == 0: 
                         t1 = time()
                         dt = t1-t_log
                         t_log = t1
                                             
-                        if args.no_wandb:
+                        if cfg.no_wandb:
                             print(f"eff batch {eff_batch:.0f} | loss: {loss.item():.2f} | dt: {dt*1000:.2f}ms | tok/s: {tokens_per_log/dt:.2f}")
                         else:
                             wandb.log({
@@ -77,12 +85,12 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
                             })
                         
 
-                    if args.log_per_val != -1 and eff_batch % (args.log_per_val*args.eff_batch_per_log) == 0:  
+                    if cfg.log_per_val and eff_batch % (cfg.log_per_val*cfg.eff_batch_per_log) == 0:  
                         val_loss = val()
                     
-                        if args.rank == 0:
+                        if cfg.rank == 0:
                         
-                            if args.no_wandb:
+                            if cfg.no_wandb:
                                 print(f"Current validation loss is: {val_loss:.2f}")
                             else:
                                 wandb.log({
@@ -93,8 +101,8 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
                                 print("-"*40)
                             
                             print('Sample Output:')
-                            response = generate(model,tokenizer,args.val_prompt,args.temp,args.device)
-                            print(args.val_prompt+response)
+                            response = generate(model,tokenizer,cfg.val_prompt,cfg.temp,cfg.device)
+                            print(cfg.val_prompt+response)
                             
                     # ----------------------------------------------       
 
@@ -108,21 +116,21 @@ def train(model: DDP,tokenizer,train_dataloader,eval_dataloader,optimizer,lr_sch
 
     return model
 
-def evaluate(model, loader, args):
+def evaluate(model, loader, cfg):
     model_mode = model.training
     model.eval()
 
-    loss_sum = torch.tensor(0,dtype=torch.float32,device=args.device)
-    nsamples = torch.tensor(0,dtype=torch.float32,device=args.device)
+    loss_sum = torch.tensor(0,dtype=torch.float32,device=cfg.device)
+    nsamples = torch.tensor(0,dtype=torch.float32,device=cfg.device)
 
     with torch.no_grad():
         for x, y in loader:
 
-            x, y = x.to(args.device), y.to(args.device)
+            x, y = x.to(cfg.device), y.to(cfg.device)
 
-            with torch.autocast(args.device_type,torch.bfloat16,enabled=args.autocast):
+            with torch.autocast(cfg.device_type,torch.bfloat16,enabled=cfg.autocast):
                 logits = model.module.forward(x) # No direct call to avoid join hooks
-                loss_sum += F.cross_entropy(logits.view(-1,args.vocab_size), y.view(-1))
+                loss_sum += F.cross_entropy(logits.view(-1,cfg.vocab_size), y.view(-1))
             
             nsamples += 1
 
@@ -141,7 +149,7 @@ def generate(model,tokenizer,string,temp,device='cpu'):
     model_mode = model.training
     model.eval()
 
-    # Hacky way to infer seq_len without needing args, allows use of `generate` outside training scenario
+    # Hacky way to infer seq_len without needing cfg, allows use of `generate` outside training scenario
     seq_len = next(v.num_embeddings for k,v in model.module.named_modules() if 'positional' in k)
 
     output = []

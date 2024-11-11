@@ -1,5 +1,5 @@
 from torch.optim import Adam
 
-def get_optimizer(model, args):
-    optimizer = Adam(params=model.parameters(),weight_decay=args.weight_decay) 
+def get_optimizer(model, weight_decay):
+    optimizer = Adam(params=model.parameters(),weight_decay=weight_decay) 
     return optimizer

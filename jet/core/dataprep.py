@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from jet.utils.files import PathFetcher
+from jet.utils.config import PathFetcher
 
 from bpekit import download_dataset, encode_dataset, train_tokenizer
 import argparse
@@ -23,4 +23,12 @@ def main():
     pass
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "config",
+        help="Path to config file."
+    )
+
+
     main()
