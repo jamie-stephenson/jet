@@ -4,9 +4,9 @@ import os
 
 def setup(backend):
     """setup function that needs to be ran on each process."""
-    if backend == "gloo": # For training tokenizers
+    if backend == "gloo": # cpu
         assert dist.is_gloo_available(), "gloo backend unavailable"
-    elif backend == "nccl": # For training models
+    elif backend == "nccl": # gpu
         assert dist.is_nccl_available(), "nccl backend unavailable"
     else:
         raise ValueError(f"The {backend} backend is not supported.")
