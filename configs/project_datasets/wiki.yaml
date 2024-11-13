@@ -1,4 +1,5 @@
 hf_path: wikimedia/wikipedia
-name: 20231101.ab
-cache_dir: ~/shared/.cache/
+name: 20231101.az
+ndocs: 24000
+shard_size: 2000000
 

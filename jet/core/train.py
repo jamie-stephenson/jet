@@ -209,7 +209,8 @@ if __name__ == '__main__':
     torch.manual_seed(cfg.seed)
 
     setup(cfg.backend) 
-    cfg.rank, cfg.world_size = dist.get_rank(), dist.get_world_size() 
+    cfg.rank = dist.get_rank()
+    cfg.world_size = dist.get_world_size() 
     
     train_model(cfg)
 

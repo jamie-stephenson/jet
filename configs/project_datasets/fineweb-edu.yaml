@@ -1,5 +1,6 @@
 hf_path: HuggingFaceFW/fineweb-edu
 name: sample-10BT
-shard_size: 1e8
+shard_size: 100_000_000
 cache_dir: /home/ubuntu/.cache/
-num_proc: 15 
+n_proc: 15 
+

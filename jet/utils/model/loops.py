@@ -1,24 +1,29 @@
-from utils.dist import FnJoinable
+from jet.utils import Config
+from jet.utils.dist import FnJoinable
 
+from bpekit import Tokenizer
 import torch
 import torch.nn.functional as F
-from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallel
 import torch.distributed as dist
 from torch.distributed.algorithms.join import Join
+from torch.utils.data import DataLoader
+from torch.optim.optimizer import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 import wandb
 
 from time import time
 
 
 def train(
-    model: DDP,
-    tokenizer,
-    train_dataloader,
-    eval_dataloader,
-    optimizer,
-    lr_scheduler,
-    cfg
-):
+    model: DistributedDataParallel,
+    tokenizer: Tokenizer,
+    train_dataloader: DataLoader,
+    eval_dataloader: DataLoader,
+    optimizer: Optimizer,
+    lr_scheduler: LRScheduler,
+    cfg: Config
+) -> DistributedDataParallel:
 
     model.train()
 
@@ -112,11 +117,15 @@ def train(
 
                     eff_batch += 1     
 
-    train_time = int(time.time()) - int(start_time)
+    train_time = int(time.time()) - int(t0)
 
     return model
 
-def evaluate(model, loader, cfg):
+def evaluate(
+    model: DistributedDataParallel, 
+    loader: DataLoader,
+    cfg: Config
+):
     model_mode = model.training
     model.eval()
 
@@ -144,7 +153,13 @@ def evaluate(model, loader, cfg):
 
     return loss
 
-def generate(model,tokenizer,string,temp,device='cpu'):
+def generate(
+    model: DistributedDataParallel,
+    tokenizer: Tokenizer,
+    string: str,
+    temp: float,
+    device: str = 'cpu'
+) -> str:
 
     model_mode = model.training
     model.eval()

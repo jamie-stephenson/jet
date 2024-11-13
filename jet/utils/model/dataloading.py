@@ -86,7 +86,7 @@ def seed_worker(worker_id):
     dataset.rank_rng = torch.Generator() # Create second source of rng that is rankwise unique
     dataset.rank_rng.manual_seed(global_seed+dataset.rank)
 
-def get_dataloader(path,split,args):     
+def get_dataloader(path,split,args) -> DataLoader:     
 
     paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
     print(paths)
