@@ -11,7 +11,7 @@ source $config_file
 
 slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
 worker_script=$mount_dir/jet/infra/scripts/build_worker.sh
-python_env_script=$mount_dir/jet/infra/scripts/python_env.sh
+env_script=$mount_dir/jet/infra/scripts/env.sh
 #---------------------
 
 #-----MOUNT DRIVE----- TODO: support more fs types
@@ -77,8 +77,8 @@ sudo sed -i 's/.*/node00/' /etc/hostname
 sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/cloud.cfg
 #---------------------
 
-#-----NTPUPDATE-------
-sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
+#------NTPDATE--------
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install ntpdate -y
 #---------------------
 
 #-------SLURM---------
@@ -104,7 +104,7 @@ mkdir ~/jet_config_logs
 
 run_on_node() {
     local node=$1
-    local args=( $node "$hosts" $slurm_conf_path $torch_index $mount_dir $python_env_script )
+    local args=( $node "$hosts" $slurm_conf_path $mount_dir $env_script )
 
     output_file=~/jet_config_logs/$node.log
 
@@ -115,19 +115,15 @@ run_on_node() {
         ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- $mount_args" < $mount_script > $output_file 2>&1
         ssh -i ~/.ssh/$key_name $USER@$node "bash -s -- ${args[@]@Q}" < $worker_script > $output_file 2>&1
     else        
-        #-----PYTHON ENV------
-        source $python_env_script $torch_index $mount_dir
-        #---------------------
-        
-        #------OPEN MPI-------
-        sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
+        #--------ENV----------
+        source $env_script $mount_dir
         #---------------------
     fi
 }
 
 # Export the function and vars to make them available to parallel
 export -f run_on_node
-export worker_script hosts slurm_conf_path torch_index mount_dir mount_script mount_args python_env_script key_name
+export worker_script hosts slurm_conf_path mount_dir mount_script mount_args env_script key_name
 
 # Run worker_script in parallel on all nodes
 parallel -j 0 run_on_node {} ::: "${nodes[@]}"

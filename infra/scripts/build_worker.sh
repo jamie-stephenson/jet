@@ -3,9 +3,8 @@
 node="$1"
 hosts="$2"
 slurm_conf_path="$3"
-torch_index="$4"
-mount_dir="$5"
-python_env_script="$6"
+mount_dir="$4"
+python_env_script="$5"
 
 #---UPDATE HOSTNAME--- 
 sudo hostname $node  
@@ -15,8 +14,8 @@ sudo sed -i "s/.*/$node/" /etc/hostname
 sudo sed -i 's/^preserve_hostname: false$/preserve_hostname: true/' /etc/cloud/cloud.cfg
 #---------------------
 
-#-----NTPUPDATE-------
-sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=20 install ntpdate -y
+#------NTPDATE--------
+sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install ntpdate -y
 #---------------------
 
 #-------SLURM---------
@@ -29,10 +28,6 @@ sudo systemctl enable slurmd
 sudo systemctl start slurmd
 #---------------------
 
-#-----PYTHON ENV------
-source $python_env_script $torch_index $mount_dir
-#---------------------
-
-#------OPEN MPI-------
-sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 install -y openmpi-bin openmpi-common libopenmpi-dev 
+#--------ENV----------
+source $env_script $mount_dir
 #---------------------
