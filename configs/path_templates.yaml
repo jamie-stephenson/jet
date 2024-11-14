@@ -1,26 +1,25 @@
 # ------PATHS------
 # Use this file to configure the directory structure of any input and output from 
-# `dataprep.py`, and `train.py`.
-# See `utils.config.Config.get_paths` for the implementation of these templates. 
+# `jet.commands.download.download_data`,
+# `jet.commands.tokenize.tokenize_data`,
+# `jet.commands.train.train_model`,
+# See `jet.utils.config.Config.get_paths` for the implementation of these templates. 
 # Any attribute of the `Config` object can be used in a template. These include:
 # - Attributes set in the config file that Config is built from
 # - Attributes that are set using command line arguments 
 # - The current `time`
 
 # -----DATASET-----
-# data_prep.py will create, and download data to, this directory.
+# `download_data` will create, and download data to, this directory.
 # save any .txt file dataset in a directory with this path. 
 dataset: 'data/{dataset}/raw/'
-# data_prep.py will create, save the encoded dataset to, this directory.
-tokens: 'data/{dataset}/tokens/'
-# -----------------
-
-# -----DATASET CONFIG-----
-# download.py takes a dataset name as its only argument
+# `download_data` takes a dataset name as its only argument
 # it uses this name to look up required info from the 
 # user defined dataset config file at this path.
 dataset_config: 'configs/project_datasets/{dataset}.yaml'
-# ------------------------
+# `tokenize_data` will create, save the encoded dataset to, this directory.
+tokens: 'data/{dataset}/tokens/'
+# -----------------
 
 # -----MODEL-----
 # trained models are saved to this path

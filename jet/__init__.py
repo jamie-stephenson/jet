@@ -1,9 +1,9 @@
-from .core import tokenize_data, get_model, train_model
+from .commands import download_data, tokenize_data, train_model
 from .utils import get_dataloader, setup, cleanup
 
 __all__ = [
+    "download_data",
     "tokenize_data",
-    "get_model",
     "train_model",
     "get_dataloader",
     "setup",

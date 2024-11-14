@@ -10,4 +10,4 @@ source ~/envs/jet/bin/activate
 
 # Train a tokenizer on a dataset AND use it to 
 # encode that same dataset  
-mpirun python -m jet.core.data 
+mpirun python -m jet.core.tokenize configs/config.yaml 

@@ -2,16 +2,13 @@ from jet.utils.config import Config
 
 from bpekit import encode_dataset, train_tokenizer
 import yaml
-from pathlib import Path
 import argparse
 
 def tokenize_data(cfg: Config):
 
     paths = cfg.get_paths()
-    datasets_dir = Path('configs/project_datasets/')
-    dataset_cfg_path = (datasets_dir / cfg.dataset).with_suffix('.yaml')
 
-    with open(dataset_cfg_path,'r') as file:
+    with open(paths.dataset_config,'r') as file:
         dataset_cfg = yaml.safe_load(file)
 
     train_tokenizer(

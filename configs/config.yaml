@@ -41,7 +41,7 @@ lr_schedule:
     lr_warmup_end: 0.4 # number of epochs to warm up lr for
 
 # -----VALIDATION-----
-log_per_val: -1
+log_per_val: 100
 temp: 1
 val_prompt: Hello, my name is Jet. J.E.T. stands for
 

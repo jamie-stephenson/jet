@@ -1,4 +1,4 @@
-from jet.core.model import get_model
+from jet.core import get_model
 from jet.utils import *
 
 from bpekit import Tokenizer

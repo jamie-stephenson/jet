@@ -8,4 +8,4 @@
 
 source ~/envs/jet/bin/activate
 
-mpirun bpekit encode data/fineweb-edu/raw/ 16384 -n 1000000
+mpirun bpekit encode data/fineweb-edu/raw/ tokenizers/16384.pkl -n 1000000

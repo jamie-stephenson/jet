@@ -161,6 +161,9 @@ def get_model(cfg):
 
     torch.set_float32_matmul_precision('high')
 
-    model = torch.compile(DDP(model.to(cfg.device),cfg.device_id),mode="reduce-overhead")
+    model = torch.compile(
+        DDP(model.to(cfg.device),cfg.device_id),
+        mode="reduce-overhead"
+    )
 
     return model
