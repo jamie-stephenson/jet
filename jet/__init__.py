@@ -1,4 +1,4 @@
-from .commands import download_data, tokenize_data, train_model
+from .commands import download, tokenize, train
 from .utils import get_dataloader, setup, cleanup
 
 __all__ = [

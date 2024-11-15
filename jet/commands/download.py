@@ -5,7 +5,7 @@ from bpekit import download_dataset
 import argparse
 import yaml
 
-def download_data(cfg: Config):
+def download(cfg: Config):
 
     paths = cfg.get_paths()
 
@@ -29,4 +29,4 @@ if __name__ == '__main__':
 
     cfg = Config.build_from(args.config)
 
-    download_data(cfg)
+    download(cfg)

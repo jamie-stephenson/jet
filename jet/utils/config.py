@@ -1,33 +1,104 @@
 from torch import cuda
+import typer
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import os
 import yaml
 from datetime import datetime
 import argparse
 from typing import Dict
+import warnings
+
+@dataclass
+class ParamAttribute:
+    """
+    Dataclass for attributes with params
+    e.g. optimizer
+    """
+    name: str
+    params: dict
+
+def __post_init__(self):
+    self.time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
+
+DEFAULT_LR_SCHEDULER = ParamAttribute(
+    name='onecycle',
+    params={
+        'lr_max': 0.01,
+        'lr_warmup_end': 0.4
+    }
+)
+
+DEFAULT_OPTIMIZER = ParamAttribute(
+    name='adamw',
+    params={
+        'weight_decay': 0.0001,
+        'momentum': 0,
+        'fused': True
+    }
+)
 
 @dataclass
 class Config:
+
     """
-    Data class that holds configuration data.
+    Dataclass that holds configuration data.
     """
 
-    @dataclass
-    class ParamAttribute:
-        """
-        Inner dataclass for attributes with params
-        e.g. optimizer
-        """
-        name: str
-        params: dict
+    # -----MODEL-----
+    d_mlp: int = 128
+    d_model: int = 32
+    mask_type: str = 'causal'
+    n_blocks: int = 12
+    n_ctx: int = 128
+    n_heads: int = 12
+    seed: int = 90
 
-    def __post_init__(self):
-        self.time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    # -----TOKENIZER-----
+    vocab_size: int = 16384
+
+    # -----TRAINING-----
+    batch_size: int = 128
+    epochs: int = 1
+    grad_accumulation_steps: int = 1
+    dropout: float = 0.2
+
+    # -----DATASET-----
+    dataset: str = 'fineweb-edu'
+    overlap: int = 8
+    n_workers: int = 2
+
+    # -----RESOURCES-----
+    cuda: bool = True
+    autocast: bool = True
+
+    # -----OPTIMIZER-----
+    optimizer: ParamAttribute = field(default_factory=lambda :DEFAULT_OPTIMIZER)
+
+    # -----LR Schedule-----
+    lr_schedule: ParamAttribute = field(default_factory=lambda :DEFAULT_LR_SCHEDULER)
+
+    # -----VALIDATION-----
+    log_per_val: int = 100
+    temp: float = 1
+    val_prompt: str = "Hello my name is JET. JET stands for"
+
+    # -----LOGGING-----
+    name: str = 'jet' 
+    no_wandb: bool = True
+    eff_batch_per_log: int = 100
+
+    # -----PATH TEMPLATES-----
+    templates: str = 'configs/path_templates.yaml'
 
     @classmethod
-    def build_from(cls, file: Path | None = None, args: argparse.Namespace | None = None):
+    def build_from(
+        cls, 
+        file: Path | None = None, 
+        args: argparse.Namespace | typer.Context | None = None
+    ):
         """
         Factory method to create a Config instance from at least one of: 
         - A YAML file 
@@ -36,9 +107,13 @@ class Config:
         Command-line args take precedence over file settings.
         """
 
-        assert file or args, "At least one source must be provided from which to build config."
+        if not file and not args:
+            warnings.warn(
+                "No config file or command line arguments given. " 
+                "Default config will be used."
+            )
 
-        # Start with an empty instance
+        # Start with a default instance
         config = cls()
         
         # Load from file if provided
@@ -51,7 +126,7 @@ class Config:
                     # Handle `ParamAttribute`s
                     if isinstance(value,dict):
                         try:
-                            setattr(config, key, cls.ParamAttribute(**value))
+                            setattr(config, key, ParamAttribute(**value))
                         except (ValueError, TypeError) as e:
                             raise type(e)(
                                 f"Unable to create attribute \"{key}\" with the following structure: {value}\n"
@@ -62,7 +137,7 @@ class Config:
 
         # Override with command-line args if provided
         if args:
-            args_dict = vars(args)
+            args_dict = args if isinstance(args,dict) else vars(args)
             args_dict.setdefault('time', datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
             for key, value in args_dict.items():
                 if value:
@@ -82,8 +157,9 @@ class Config:
         if config.autocast:
             config.autocast = config.cuda and cuda.get_device_properties(0).major >= 8
 
-        # optmizer
-        config.optimizer.params['fused'] = config.cuda
+        # optimizer
+        if config.optimizer.params.get('fused'): 
+            config.optimizer.params['fused'] = config.cuda
 
         return config
 

@@ -1,4 +1,4 @@
-from jet.core import get_model
+from jet.core import get_model, train_model
 from jet.utils import *
 
 from bpekit import Tokenizer
@@ -12,8 +12,15 @@ import yaml
 from pathlib import Path
 
 
-def train_model(cfg: Config):
+def train(cfg: Config):
 
+    torch.manual_seed(cfg.seed)
+
+    setup(cfg.backend) 
+
+    cfg.rank = dist.get_rank()
+    cfg.world_size = dist.get_world_size() 
+    
     paths = cfg.get_paths()
 
     if not cfg.no_wandb and cfg.rank == 0:
@@ -41,7 +48,7 @@ def train_model(cfg: Config):
         **cfg.lr_schedule.params
     )
     
-    model = train(
+    model = train_model(
         model,
         tokenizer,
         train_dataloader,
@@ -57,14 +64,9 @@ def train_model(cfg: Config):
         with open(paths.model_config,'w') as file:
             yaml.dump(vars(cfg), file)
 
+    cleanup()
 
 def get_parser():
-
-    # NOTE: Some args cannot be set from command line (e.g. nested args like optimizer).
-    # These must be set from a config yaml file.
-    # NOTE: No defaults. These are set from the config file.
-    # Command line args should just be used as a convenient override of config file
-    # for specific args here and there.
 
     parser = argparse.ArgumentParser()
 
@@ -206,12 +208,4 @@ if __name__ == '__main__':
 
     cfg = Config.build_from(args.config_file,args)
 
-    torch.manual_seed(cfg.seed)
-
-    setup(cfg.backend) 
-    cfg.rank = dist.get_rank()
-    cfg.world_size = dist.get_world_size() 
-    
-    train_model(cfg)
-
-    cleanup()
+    train(cfg)

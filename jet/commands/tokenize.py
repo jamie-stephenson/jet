@@ -4,7 +4,7 @@ from bpekit import encode_dataset, train_tokenizer
 import yaml
 import argparse
 
-def tokenize_data(cfg: Config):
+def tokenize(cfg: Config):
 
     paths = cfg.get_paths()
 
@@ -37,4 +37,4 @@ if __name__ == '__main__':
 
     cfg = Config.build_from(args.config)
 
-    tokenize_data(cfg)
+    tokenize(cfg)
