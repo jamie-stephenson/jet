@@ -15,7 +15,7 @@ import wandb
 from time import time
 
 
-def train_model(
+def train(
     model: DistributedDataParallel,
     tokenizer: Tokenizer,
     train_dataloader: DataLoader,

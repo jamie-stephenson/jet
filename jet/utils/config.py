@@ -1,5 +1,4 @@
 from torch import cuda
-import typer
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,7 +26,7 @@ DEFAULT_LR_SCHEDULER = ParamAttribute(
     name='onecycle',
     params={
         'lr_max': 0.01,
-        'lr_warmup_end': 0.4
+        'pct_start': 0.1
     }
 )
 
@@ -35,7 +34,6 @@ DEFAULT_OPTIMIZER = ParamAttribute(
     name='adamw',
     params={
         'weight_decay': 0.0001,
-        'momentum': 0,
         'fused': True
     }
 )
@@ -81,7 +79,7 @@ class Config:
     lr_schedule: ParamAttribute = field(default_factory=lambda :DEFAULT_LR_SCHEDULER)
 
     # -----VALIDATION-----
-    log_per_val: int = 100
+    log_per_val: int | None = None
     temp: float = 1
     val_prompt: str = "Hello my name is JET. JET stands for"
 
@@ -97,7 +95,7 @@ class Config:
     def build_from(
         cls, 
         file: Path | None = None, 
-        args: argparse.Namespace | typer.Context | None = None
+        args: argparse.Namespace | dict | None = None
     ):
         """
         Factory method to create a Config instance from at least one of: 
@@ -121,19 +119,19 @@ class Config:
             with open(file, 'r') as yaml_file:
                 data = yaml.safe_load(yaml_file)
 
-                for key, value in data.items():
+            for key, value in data.items():
 
-                    # Handle `ParamAttribute`s
-                    if isinstance(value,dict):
-                        try:
-                            setattr(config, key, ParamAttribute(**value))
-                        except (ValueError, TypeError) as e:
-                            raise type(e)(
-                                f"Unable to create attribute \"{key}\" with the following structure: {value}\n"
-                                "NOTE: Attributes with nested strucutre are expected to take the form {\"name\":___, \"params\":{___}}."
-                            ) from e
-                    else:
-                        setattr(config, key, value)
+                # Handle `ParamAttribute`s
+                if isinstance(value,dict):
+                    try:
+                        setattr(config, key, ParamAttribute(**value))
+                    except (ValueError, TypeError) as e:
+                        raise type(e)(
+                            f"Unable to create attribute \"{key}\" with the following structure: {value}\n"
+                            "NOTE: Attributes with nested strucutre are expected to take the form {\"name\":___, \"params\":{___}}."
+                        ) from e
+                else:
+                    setattr(config, key, value)
 
         # Override with command-line args if provided
         if args:
@@ -148,10 +146,10 @@ class Config:
         # cuda
         if config.cuda:
             config.cuda = cuda.is_available()
-            config.device_id = [int(os.getenv('LOCAL_RANK','0'))] if config.cuda else None
-            config.device = f"cuda:{config.device_id[0]}" if config.cuda else "cpu",
-            config.device_type = 'cuda' if config.cuda else 'cpu'
-            config.backend = 'nccl' if config.cuda else 'gloo'
+        
+        config.device_id = [int(os.getenv('LOCAL_RANK','0'))] if config.cuda else None
+        config.device = f"cuda:{config.device_id[0]}" if config.cuda else "cpu"
+        config.device_type = 'cuda' if config.cuda else 'cpu'
 
         # autocast
         if config.autocast:

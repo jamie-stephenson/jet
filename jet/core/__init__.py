@@ -1,2 +1,2 @@
-from .loops import train_model
+from .loops import train
 from .model import get_model

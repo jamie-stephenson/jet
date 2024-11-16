@@ -20,7 +20,7 @@ dropout: 0.2
 # -----DATASET-----
 dataset: wiki
 overlap: 4
-n_workers: 2
+n_workers: 0
 
 # -----RESOURCES-----
 cuda: False
@@ -31,17 +31,17 @@ optimizer:
   name: adamw
   params:
     weight_decay: 0.0001
-    momentum: 0
+    fused: False
 
 # -----LR Schedule-----
 lr_schedule:
   name: onecycle
   params:
     lr_max: 0.01
-    lr_warmup_end: 0.4 # number of epochs to warm up lr for
+    pct_start: 0.1 # Percentage of training to increase lr for 
 
-# -----VALIDATION-----
-log_per_val: 100
+# -----VALIDATION----- 
+log_per_val: 10
 temp: 1
 val_prompt: Hello, my name is Jet. J.E.T. stands for
 

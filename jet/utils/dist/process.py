@@ -2,14 +2,16 @@ import torch.distributed as dist
 
 import os
 
-def setup(backend):
+def setup(using_cuda: bool):
     """setup function that needs to be ran on each process."""
-    if backend == "gloo": # cpu
-        assert dist.is_gloo_available(), "gloo backend unavailable"
-    elif backend == "nccl": # gpu
+    
+    if using_cuda: # gpu
         assert dist.is_nccl_available(), "nccl backend unavailable"
-    else:
-        raise ValueError(f"The {backend} backend is not supported.")
+        backend = 'nccl'
+    else: # cpu
+        assert dist.is_gloo_available(), "gloo backend unavailable"
+        backend = 'gloo'
+
     if is_torchrun():
         # `init_method` does not need to be set as the default (`env://`) requires only the
         # env variables that are automatically set by using `torchrun`. 

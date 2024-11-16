@@ -131,7 +131,6 @@ class TransformerBlock(nn.Module):
 
 def get_model(cfg):
     #Note: no softmax on last layer, this model outputs logits ready for crossentropy loss.
-    
     model = nn.Sequential(
 
         EmbeddingLayer(

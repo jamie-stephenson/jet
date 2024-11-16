@@ -1,9 +1,9 @@
-from .download import download
-from .tokenize import tokenize
-from .train import train
+from .download import download_data
+from .tokenize import tokenize_data
+from .train import train_model
 
 __all__ = [
-    "download",
-    "tokenize",
-    "train"
+    "download_data",
+    "tokenize_data",
+    "train_model"
 ]

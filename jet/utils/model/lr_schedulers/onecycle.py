@@ -54,6 +54,20 @@ class OverflowOneCycleLR(OneCycleLR):
 
         return lrs
 
-def get_lr_scheduler(optimizer, lr_max, steps_per_epoch, epochs):
-    scheduler = OverflowOneCycleLR(optimizer, lr_max, epochs=epochs, steps_per_epoch=steps_per_epoch) 
+def get_lr_scheduler(
+    optimizer, 
+    lr_max, 
+    pct_start,
+    steps_per_epoch, 
+    epochs
+):
+
+    scheduler = OverflowOneCycleLR(
+        optimizer, 
+        lr_max, 
+        pct_start=pct_start,
+        epochs=epochs, 
+        steps_per_epoch=steps_per_epoch
+    ) 
+
     return scheduler

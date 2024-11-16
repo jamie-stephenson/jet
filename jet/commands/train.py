@@ -1,4 +1,4 @@
-from jet.core import get_model, train_model
+from jet.core import get_model, train
 from jet.utils import *
 
 from bpekit import Tokenizer
@@ -12,11 +12,11 @@ import yaml
 from pathlib import Path
 
 
-def train(cfg: Config):
+def train_model(cfg: Config):
 
     torch.manual_seed(cfg.seed)
 
-    setup(cfg.backend) 
+    setup(cfg.cuda) 
 
     cfg.rank = dist.get_rank()
     cfg.world_size = dist.get_world_size() 
@@ -44,11 +44,12 @@ def train(cfg: Config):
     lr_scheduler = get_lr_scheduler(
         cfg.lr_schedule.name, 
         optimizer, 
+        epochs=cfg.epochs,
         steps_per_epoch=len(train_dataloader)//cfg.grad_accumulation_steps, 
         **cfg.lr_schedule.params
     )
     
-    model = train_model(
+    model = train(
         model,
         tokenizer,
         train_dataloader,
@@ -208,4 +209,4 @@ if __name__ == '__main__':
 
     cfg = Config.build_from(args.config_file,args)
 
-    train(cfg)
+    train_model(cfg)

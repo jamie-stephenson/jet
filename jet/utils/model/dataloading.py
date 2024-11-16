@@ -1,8 +1,11 @@
+from jet.utils import Config
+
 import torch
 from torch.utils.data import DataLoader, IterableDataset
 import numpy as np
 
 import os
+from pathlib import Path
 
 class ShardedDataset(IterableDataset):
     """
@@ -86,16 +89,27 @@ def seed_worker(worker_id):
     dataset.rank_rng = torch.Generator() # Create second source of rng that is rankwise unique
     dataset.rank_rng.manual_seed(global_seed+dataset.rank)
 
-def get_dataloader(path,split,args) -> DataLoader:     
+def get_dataloader(
+    path: Path,
+    split: str,
+    cfg: Config
+) -> DataLoader:     
 
-    paths = [os.path.join(path,shard) for shard in sorted(os.listdir(path)) if split in shard]
-    print(paths)
-    dataset = ShardedDataset(paths,args.seq_len,args.overlap,args.rank,args.world_size)
+    paths = [path/shard for shard in sorted(os.listdir(path)) if split in shard]
+    
+    dataset = ShardedDataset(
+        paths,
+        cfg.n_ctx,
+        cfg.overlap,
+        cfg.rank,
+        cfg.world_size
+    )
+
     dataloader = DataLoader(
-                    dataset=dataset, 
-                    batch_size=args.batch_size, 
-                    num_workers=args.num_workers,
-                    worker_init_fn=seed_worker
-                )
+        dataset=dataset, 
+        batch_size=cfg.batch_size, 
+        num_workers=cfg.n_workers,
+        worker_init_fn=seed_worker
+    )
     
     return dataloader
