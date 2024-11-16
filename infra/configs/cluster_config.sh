@@ -13,9 +13,6 @@ drive_addr='address'
 drive_usr='user'
 drive_pwd='pwd'
 
-#---Python-Env---
-torch_index=https://download.pytorch.org/whl/cpu
-
 #---Nodes---
 nodes=()
 

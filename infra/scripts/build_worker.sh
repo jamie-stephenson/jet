@@ -4,7 +4,7 @@ node="$1"
 hosts="$2"
 slurm_conf_path="$3"
 mount_dir="$4"
-python_env_script="$5"
+env_script="$5"
 
 #---UPDATE HOSTNAME--- 
 sudo hostname $node  

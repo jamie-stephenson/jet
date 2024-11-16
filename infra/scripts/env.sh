@@ -9,8 +9,7 @@ sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
 python3.11 -m venv ~/envs/jet
 source ~/envs/jet/bin/activate
-pip install -r $mount_dir/jet/requirements.txt
-pip install torch --index-url $torch_index
+pip install $mount_dir/jet/
 deactivate
 #---------------------     
 
