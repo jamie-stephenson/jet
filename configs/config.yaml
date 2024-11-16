@@ -1,37 +1,37 @@
 # -----MODEL-----
-d_mlp: 32
-d_model: 16
+d_mlp: 256
+d_model: 64
 mask_type: causal
-n_blocks: 4
-n_ctx: 16
+n_blocks: 6
+n_ctx: 32
 n_heads: 8
 name: jet
 seed: 91
 
 # -----TOKENIZER-----
-vocab_size: 2048
+vocab_size: 16384
 
 # -----TRAINING-----
-batch_size: 16
+batch_size: 32
 epochs: 1
 grad_accumulation_steps: 1
 dropout: 0.2
 
 # -----DATASET-----
-dataset: wiki
+dataset: fineweb-edu
 overlap: 4
-n_workers: 0
+n_workers: 2
 
 # -----RESOURCES-----
-cuda: False
-autocast: False
+cuda: True
+autocast: True
 
 # -----OPTIMIZER-----
 optimizer:
   name: adamw
   params:
     weight_decay: 0.0001
-    fused: False
+    fused: True
 
 # -----LR Schedule-----
 lr_schedule:
@@ -41,12 +41,12 @@ lr_schedule:
     pct_start: 0.1 # Percentage of training to increase lr for 
 
 # -----VALIDATION----- 
-log_per_val: 10
+log_per_val: 1000
 temp: 1
 val_prompt: Hello, my name is Jet. J.E.T. stands for
 
 # -----LOGGING-----
-no_wandb: True
+wandb: True
 eff_batch_per_log: 100
 
 # -----PATH TEMPLATES-----

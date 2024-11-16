@@ -85,7 +85,7 @@ class Config:
 
     # -----LOGGING-----
     name: str = 'jet' 
-    no_wandb: bool = True
+    wandb: bool = False
     eff_batch_per_log: int = 100
 
     # -----PATH TEMPLATES-----

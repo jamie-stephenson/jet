@@ -23,8 +23,8 @@ def train_model(cfg: Config):
     
     paths = cfg.get_paths()
 
-    if not cfg.no_wandb and cfg.rank == 0:
-        wandb.init(project='jet',name=paths.wandb,config=cfg)
+    if cfg.wandb and cfg.rank == 0:
+        wandb.init(project='jet',name=str(paths.wandb),config=cfg)
         wandb.define_metric("Effective Batch Number") 
 
     # Only used for sample output generation during training

@@ -47,12 +47,12 @@ def train(
         for epoch in range(cfg.epochs):
 
             if cfg.rank == 0:
-                if cfg.no_wandb:
+                if cfg.wandb:
+                    wandb.log({"Epoch": epoch})
+                else:
                     print("-"*40)
                     print(f"Epoch {epoch}")
                     print("-"*40)
-                else:
-                    wandb.log({"Epoch": epoch})
                                 
             for x, y in train_dataloader:
 
@@ -78,9 +78,7 @@ def train(
                         dt = t1-t_log
                         t_log = t1
                                             
-                        if cfg.no_wandb:
-                            print(f"eff batch {eff_batch:.0f} | loss: {loss.item():.2f} | dt: {dt*1000:.2f}ms | tok/s: {tokens_per_log/dt:.2f}")
-                        else:
+                        if cfg.wandb:
                             wandb.log({
                                 "Train Loss": loss.item(),
                                 "Learning Rate": optimizer.param_groups[0]['lr'],
@@ -88,6 +86,8 @@ def train(
                                 "Effective Batch Number": eff_batch,
                                 "Tokens per Second": tokens_per_log/dt
                             })
+                        else:
+                            print(f"eff batch {eff_batch:.0f} | loss: {loss.item():.2f} | dt: {dt*1000:.2f}ms | tok/s: {tokens_per_log/dt:.2f}")
                         
 
                     if cfg.log_per_val and eff_batch % (cfg.log_per_val*cfg.eff_batch_per_log) == 0:  
@@ -95,15 +95,15 @@ def train(
                     
                         if cfg.rank == 0:
                         
-                            if cfg.no_wandb:
-                                print(f"Current validation loss is: {val_loss:.2f}")
-                            else:
+                            if cfg.wandb:
                                 wandb.log({
                                     "Val Loss": val_loss,
                                 })
                                 print("-"*40)
                                 print(f"Effective Batch {eff_batch:.0f}")
                                 print("-"*40)
+                            else:
+                                print(f"Current validation loss is: {val_loss:.2f}")
                             
                             print('Sample Output:')
                             response = generate(model,tokenizer,cfg.val_prompt,cfg.temp,cfg.device)
