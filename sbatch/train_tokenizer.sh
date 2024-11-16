@@ -8,4 +8,4 @@
 
 source ~/envs/jet/bin/activate
 
-mpirun bpekit train data/fineweb-edu/raw/ 16384 -n 1000000
+mpirun --bind-to none bpekit train data/fineweb-edu/raw/ 16384 -n 1000000

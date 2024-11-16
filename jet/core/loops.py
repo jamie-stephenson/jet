@@ -117,7 +117,7 @@ def train(
 
                     eff_batch += 1     
 
-    train_time = int(time.time()) - int(t0)
+    train_time = int(time()) - int(t0)
 
     return model
 
