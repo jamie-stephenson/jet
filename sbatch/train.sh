@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=train_model
+#SBATCH --job-name=train
 #SBATCH --partition=workers
 #SBATCH --nodes=
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=
 #SBATCH --gpus-per-task=
 #SBATCH --time=
-#SBATCH --output=./slurmlogs/%j_train_model.log
+#SBATCH --output=./slurmlogs/%j_train.log
 
 # Activate the virtual environment
 source ~/envs/jet/bin/activate
@@ -24,4 +24,4 @@ srun torchrun \
     --rdzv_id=$RANDOM \
     --rdzv_backend=c10d \
     --rdzv_endpoint=$master_addr \
-    train.py --config_file configs/model_config.yaml
+    -m jet.main train -c configs/config.yaml
