@@ -8,8 +8,8 @@ version = "0.1.0"
 dependencies = [
     "datasets==3.1.0",
     "torch==2.4.1",
-    "wandb==0.18.3"
-    # "bpekit @ git+https://github.com/jamie-stephenson/bpekit.git@main"
+    "wandb==0.18.3",
+    "bpekit @ git+https://github.com/jamie-stephenson/bpekit.git@main"
 ]
 
 [tool.setuptools.packages.find]
