@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #--CONFIGURE VARIABLES--
-config_file=~/jet/infra/configs/cluster_config.sh
+config_file=~/dtt/infra/configs/cluster_config.sh
 
 if [ ! -f "$config_file" ]; then
     echo "Error: $config_file not found."
@@ -9,21 +9,21 @@ if [ ! -f "$config_file" ]; then
 fi
 source $config_file
 
-slurm_conf_path=$mount_dir/jet/infra/configs/slurm/
-worker_script=$mount_dir/jet/infra/scripts/build_worker.sh
-env_script=$mount_dir/jet/infra/scripts/env.sh
+slurm_conf_path=$mount_dir/dtt/infra/configs/slurm/
+worker_script=$mount_dir/dtt/infra/scripts/build_worker.sh
+env_script=$mount_dir/dtt/infra/scripts/env.sh
 #---------------------
 
 #-----MOUNT DRIVE----- TODO: support more fs types
-mount_script=~/jet/infra/scripts/mounts/$fs_type.sh 
+mount_script=~/dtt/infra/scripts/mounts/$fs_type.sh 
 mount_args="$drive_addr $drive_usr $drive_pwd $mount_dir"
 source $mount_script $mount_args
 #---------------------
 
 #-----CLONE REPO------
 sudo chown $USER $mount_dir
-mkdir $mount_dir/jet/
-git clone https://github.com/jamie-stephenson/jet.git $mount_dir/jet/
+mkdir $mount_dir/dtt/
+git clone https://github.com/jamie-stephenson/dtt.git $mount_dir/dtt/
 #---------------------
 
 #-EDIT SLURM CONFIGS--
@@ -60,7 +60,7 @@ echo "$mount_dir*" >> ${slurm_conf_path}cgroup_allowed_devices_file.conf
 #---------------------
 
 #----SLURM LOGGING----
-mkdir -p $mount_dir/jet/slurmlogs/
+mkdir -p $mount_dir/dtt/slurmlogs/
 #---------------------
 
 #---UPDATE HOSTNAME--- 
@@ -100,13 +100,13 @@ sudo apt-get -o DPkg::Lock::Timeout=60 -y install parallel
 #--BUILD WORKERS--
 touch ~/.ssh/known_hosts
 chmod 600 ~/.ssh/known_hosts
-mkdir ~/jet_config_logs
+mkdir ~/dtt_config_logs
 
 run_on_node() {
     local node=$1
     local args=( $node "$hosts" $slurm_conf_path $mount_dir $env_script )
 
-    output_file=~/jet_config_logs/$node.log
+    output_file=~/dtt_config_logs/$node.log
 
     if ! [ $node = 'node00' ]; then
         if ! ssh-keygen -F $node; then

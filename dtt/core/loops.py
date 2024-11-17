@@ -1,5 +1,5 @@
-from jet.utils import Config
-from jet.utils.dist import FnJoinable
+from dtt.utils import Config
+from dtt.utils.dist import FnJoinable
 
 from bpekit import Tokenizer
 import torch

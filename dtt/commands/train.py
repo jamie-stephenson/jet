@@ -1,5 +1,5 @@
-from jet.core import get_model, train
-from jet.utils import *
+from dtt.core import get_model, train
+from dtt.utils import *
 
 from bpekit import Tokenizer
 import torch
@@ -24,7 +24,7 @@ def train_model(cfg: Config):
     paths = cfg.get_paths()
 
     if cfg.wandb and cfg.rank == 0:
-        wandb.init(project='jet',name=str(paths.wandb),config=cfg)
+        wandb.init(project='dtt',name=str(paths.wandb),config=cfg)
         wandb.define_metric("Effective Batch Number") 
 
     # Only used for sample output generation during training

@@ -9,7 +9,7 @@
 #SBATCH --output=./slurmlogs/%j_train.log
 
 # Activate the virtual environment
-source ~/envs/jet/bin/activate
+source ~/envs/dtt/bin/activate
 
 # Automatically assign master node. This must be a member of the partiton being used. 
 # Be careful if inclduing the login node in the partition. 
@@ -24,4 +24,4 @@ srun torchrun \
     --rdzv_id=$RANDOM \
     --rdzv_backend=c10d \
     --rdzv_endpoint=$master_addr \
-    -m jet.main train -c configs/config.yaml
+    -m dtt.main train -c configs/config.yaml

@@ -1,5 +1,5 @@
 hf_path: wikimedia/wikipedia
 name: 20231101.az
-ndocs: 24000
+ndocs: 3000
 shard_size: 2000000
 

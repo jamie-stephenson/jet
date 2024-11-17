@@ -81,10 +81,10 @@ class Config:
     # -----VALIDATION-----
     log_per_val: int | None = None
     temp: float = 1
-    val_prompt: str = "Hello my name is JET. JET stands for"
+    val_prompt: str = "Hello my name is dtt. DTT stands for"
 
     # -----LOGGING-----
-    name: str = 'jet' 
+    name: str = 'dtt' 
     wandb: bool = False
     eff_batch_per_log: int = 100
 

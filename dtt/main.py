@@ -1,5 +1,5 @@
-from jet.commands import *
-from jet.utils import Config
+from dtt.commands import *
+from dtt.utils import Config
 
 import typer
 

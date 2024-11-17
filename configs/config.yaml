@@ -5,7 +5,7 @@ mask_type: causal
 n_blocks: 6
 n_ctx: 32
 n_heads: 8
-name: jet
+name: dtt
 seed: 91
 
 # -----TOKENIZER-----
@@ -18,7 +18,7 @@ grad_accumulation_steps: 1
 dropout: 0.2
 
 # -----DATASET-----
-dataset: fineweb-edu
+dataset: wiki
 overlap: 4
 n_workers: 2
 
@@ -43,7 +43,7 @@ lr_schedule:
 # -----VALIDATION----- 
 log_per_val: 1000
 temp: 1
-val_prompt: Hello, my name is Jet. J.E.T. stands for
+val_prompt: Hello, my name is dtt. DTT stands for
 
 # -----LOGGING-----
 wandb: True

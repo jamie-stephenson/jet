@@ -1,4 +1,4 @@
-from jet.utils.config import Config
+from dtt.utils.config import Config
 
 from bpekit import download_dataset
 

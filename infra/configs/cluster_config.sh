@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #---Name---
-cluster_name='jumbo'
+cluster_name='slurmcluster'
 
 #---Key---
 key_name='name'

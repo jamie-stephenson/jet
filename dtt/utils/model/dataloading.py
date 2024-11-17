@@ -1,4 +1,4 @@
-from jet.utils import Config
+from dtt.utils import Config
 
 import torch
 from torch.utils.data import DataLoader, IterableDataset

@@ -6,8 +6,8 @@
 #SBATCH --time=
 #SBATCH --output=./slurmlogs/%j_tokenize.log
 
-source ~/envs/jet/bin/activate
+source ~/envs/dtt/bin/activate
 
 # Train a tokenizer on a dataset AND use it to 
 # encode that same dataset  
-mpirun --bind-to none python -m jet.main tokenize -c configs/config.yaml 
+mpirun --bind-to none dtt tokenize -c configs/config.yaml 
