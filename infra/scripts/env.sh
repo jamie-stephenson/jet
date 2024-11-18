@@ -7,7 +7,7 @@ mount_dir="$1"
 sudo NEEDRESTART_MODE=l add-apt-repository -y ppa:deadsnakes/ppa
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
-python3.11 -m venv ~/envs/jet
+python3.11 -m venv ~/envs/dtt
 source ~/envs/dtt/bin/activate
 pip install $mount_dir/dtt/
 deactivate
