@@ -8,6 +8,12 @@ def tokenize_data(cfg: Config):
 
     paths = cfg.get_paths()
 
+    if paths.tokens.exists() and paths.tokens.is_dir():
+        raise FileExistsError(
+            f"A directory named `{paths.tokens}` already exists. "
+            f"Have you already used `{paths.tokenizer}` to encode `{paths.dataset}`?"
+        )
+
     with open(paths.dataset_config,'r') as file:
         dataset_cfg = yaml.safe_load(file)
 
