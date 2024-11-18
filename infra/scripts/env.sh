@@ -4,6 +4,7 @@
 mount_dir="$1"
 
 #-PYTHON ENVIRONMENT--
+# If you want a specific python version you can use deadsnakes:
 sudo NEEDRESTART_MODE=l add-apt-repository -y ppa:deadsnakes/ppa
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11
 sudo NEEDRESTART_MODE=l apt-get -o DPkg::Lock::Timeout=60 -y install python3.11-venv
