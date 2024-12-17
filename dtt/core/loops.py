@@ -129,10 +129,10 @@ def evaluate(
     model_mode = model.training
     model.eval()
 
-    loss_sum = torch.tensor(0,dtype=torch.float32,device=cfg.device)
-    nsamples = torch.tensor(0,dtype=torch.float32,device=cfg.device)
 
     with torch.no_grad():
+        loss_sum = torch.tensor(0,dtype=torch.float32,device=cfg.device)
+        nsamples = torch.tensor(0,dtype=torch.float32,device=cfg.device)
         for x, y in loader:
 
             x, y = x.to(cfg.device), y.to(cfg.device)

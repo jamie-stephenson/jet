@@ -7,6 +7,6 @@ tokenizers
 wandb
 logs
 test*
-venv
-*egg-info
 build
+dist
+uv.lock
